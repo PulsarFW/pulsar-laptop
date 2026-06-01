@@ -259,7 +259,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					Wait(1)
 					for k, v in ipairs(list) do
 						Wait(1)
-						exports.ox_inventory:AddItem(char:GetData("SID"), v.item, v.quantity, {}, 1)
+						exports.ox_inventory:AddItem(source, v.item, v.quantity, {}, 1)
 					end
 				end
 

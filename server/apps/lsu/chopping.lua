@@ -285,7 +285,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
 								char:GetData("SID"), 1,
 								calcLvl)
-							exports.ox_inventory:AddItem(char:GetData("SID"), 'rubber',
+							exports.ox_inventory:AddItem(source, 'rubber',
 								math.random(12, 78) * calcLvl, {}, 1)
 						end
 						return cb(true)
@@ -409,7 +409,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 
 			if #pickups > 0 then
 				for k, v in ipairs(pickups) do
-					exports.ox_inventory:AddItem(char:GetData("SID"), "parts_box", 1, {
+					exports.ox_inventory:AddItem(source, "parts_box", 1, {
 						Items = v.Items,
 					}, 1)
 				end
