@@ -1,7 +1,7 @@
 name("Pulsar Framework Laptop")
 description("Pulsar FrameworkLaptop")
 author("[Alzar, Dr Nick]")
-version "1.0.4"
+version '1.0.6'
 lua54("yes")
 fx_version("cerulean")
 game("gta5")
