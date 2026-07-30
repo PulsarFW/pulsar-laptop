@@ -1,3 +1,5 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/server.lua"))().lsu.chopping
+
 _inProgress = {}
 _chopped = {}
 _pChopping = {}
@@ -17,27 +19,26 @@ AddEventHandler("Characters:Server:PlayerDropped", function(source, cData)
 end)
 
 AddEventHandler("Laptop:Server:RegisterCallbacks", function()
-	local r = math.random(#_chopDropoffs)
-	GlobalState["PublicDropoff"] = _chopDropoffs[r]
-	if r + 1 > #_chopDropoffs then
-		GlobalState["PrivateDropoff"] = _chopDropoffs[1]
-		GlobalState["PersonalDropoff"] = _chopDropoffs[2]
+	local r = math.random(#config.dropoffs)
+	GlobalState["PublicDropoff"] = config.dropoffs[r]
+	if r + 1 > #config.dropoffs then
+		GlobalState["PrivateDropoff"] = config.dropoffs[1]
+		GlobalState["PersonalDropoff"] = config.dropoffs[2]
 	else
-		GlobalState["PrivateDropoff"] = _chopDropoffs[r + 1]
-		if r + 2 > #_chopDropoffs then
-			GlobalState["PersonalDropoff"] = _chopDropoffs[1]
+		GlobalState["PrivateDropoff"] = config.dropoffs[r + 1]
+		if r + 2 > #config.dropoffs then
+			GlobalState["PersonalDropoff"] = config.dropoffs[1]
 		else
-			GlobalState["PersonalDropoff"] = _chopDropoffs[r + 2]
+			GlobalState["PersonalDropoff"] = config.dropoffs[r + 2]
 		end
 	end
 
-	RegisterItems()
-
-	exports["pulsar-chat"]:RegisterAdminCommand('choplists', function(source, args, rawCommand)
+	
+    plsr.Chat:RegisterAdminCommand('choplists', function(source, args, rawCommand)
 		if args[1] == "all" then
-			exports['pulsar-core']:LoggerTrace("Chopping", "Generating New Public Chop List")
+			plsr.Logger:Trace("Chopping", "Generating New Public Chop List")
 			_publicChoplist = {
-				list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 2),
+				list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 2),
 				public = true,
 			}
 
@@ -53,10 +54,10 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					_chopped[k] = nil
 				end
 			end
-
-			exports['pulsar-core']:LoggerTrace("Chopping", "Generating New VIP Chop List")
+			
+			plsr.Logger:Trace("Chopping", "Generating New VIP Chop List")
 			_vipChopList = {
-				list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 4),
+				list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 4),
 				public = true,
 			}
 
@@ -72,15 +73,15 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					_chopped[k] = nil
 				end
 			end
-
-			for k, v in pairs(exports['pulsar-characters']:FetchAllCharacters()) do
+			
+			for k, v in pairs(plsr.Fetch:AllCharacters()) do
 				if v ~= nil then
-					local dutyData = exports['pulsar-jobs']:DutyGet(v:GetData("Source"))
+					local dutyData = plsr.Jobs.Duty:Get(v:GetData("Source"))
 					if (
-							exports['pulsar-characters']:RepHasLevel(v:GetData("Source"), "Chopping", 5) or
-							hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
-						) and (not dutyData or dutyData.Id ~= "police") then
-						exports['pulsar-laptop']:AddNotification(
+						plsr.Reputation:HasLevel(v:GetData("Source"), "Chopping", 5) or
+						hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
+					) and (not dutyData or dutyData.Id ~= "police") then
+						plsr.Laptop.Notification:Add(
 							v:GetData("Source"),
 							"New Chop List",
 							"A New Public Chop List Is Available",
@@ -92,7 +93,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 							}
 						)
 
-						exports['pulsar-laptop']:AddNotification(
+						plsr.Laptop.Notification:Add(
 							v:GetData("Source"),
 							"New Chop List",
 							"A New Private Chop List Is Available",
@@ -107,9 +108,9 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 				end
 			end
 		elseif args[1] == "public" then
-			exports['pulsar-core']:LoggerTrace("Chopping", "Generating New Public Chop List")
+			plsr.Logger:Trace("Chopping", "Generating New Public Chop List")
 			_publicChoplist = {
-				list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 2),
+				list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 2),
 				public = true,
 			}
 
@@ -125,15 +126,15 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					_chopped[k] = nil
 				end
 			end
-
-			for k, v in pairs(exports['pulsar-characters']:FetchAllCharacters()) do
+			
+			for k, v in pairs(plsr.Fetch:AllCharacters()) do
 				if v ~= nil then
-					local dutyData = exports['pulsar-jobs']:DutyGet(v:GetData("Source"))
+					local dutyData = plsr.Jobs.Duty:Get(v:GetData("Source"))
 					if (
-							exports['pulsar-characters']:RepHasLevel(v:GetData("Source"), "Chopping", 5) or
-							hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
-						) and (not dutyData or dutyData.Id ~= "police") then
-						exports['pulsar-laptop']:AddNotification(
+						plsr.Reputation:HasLevel(v:GetData("Source"), "Chopping", 5) or
+						hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
+					) and (not dutyData or dutyData.Id ~= "police") then
+						plsr.Laptop.Notification:Add(
 							v:GetData("Source"),
 							"New Chop List",
 							"A New Public Chop List Is Available",
@@ -148,9 +149,9 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 				end
 			end
 		elseif args[1] == "private" then
-			exports['pulsar-core']:LoggerTrace("Chopping", "Generating New VIP Chop List")
+			plsr.Logger:Trace("Chopping", "Generating New VIP Chop List")
 			_vipChopList = {
-				list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 4),
+				list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 4),
 				public = true,
 			}
 
@@ -166,15 +167,15 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					_chopped[k] = nil
 				end
 			end
-
-			for k, v in pairs(exports['pulsar-characters']:FetchAllCharacters()) do
+			
+			for k, v in pairs(plsr.Fetch:AllCharacters()) do
 				if v ~= nil then
-					local dutyData = exports['pulsar-jobs']:DutyGet(v:GetData("Source"))
+					local dutyData = plsr.Jobs.Duty:Get(v:GetData("Source"))
 					if (
-							exports['pulsar-characters']:RepHasLevel(v:GetData("Source"), "Chopping", 5) or
-							hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
-						) and (not dutyData or dutyData.Id ~= "police") then
-						exports['pulsar-laptop']:AddNotification(
+						plsr.Reputation:HasLevel(v:GetData("Source"), "Chopping", 5) or
+						hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
+					) and (not dutyData or dutyData.Id ~= "police") then
+						plsr.Laptop.Notification:Add(
 							v:GetData("Source"),
 							"New Chop List",
 							"A New Private Chop List Is Available",
@@ -189,73 +190,65 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 				end
 			end
 		else
-			exports["pulsar-chat"]:SendSystemSingle(source, "Invalid Type")
+			plsr.Chat.Send.System:Single(source, "Invalid Type")
 		end
-	end, {
-		help = 'Generates New Chop List',
+    end, {
+        help = 'Generates New Chop List',
 		params = {
 			{
 				name = "Type",
 				help = "What List Type: public, private, all",
 			},
 		},
-	}, 1)
+    }, 1)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:CheckVehicle",
-		function(source, data, cb)
-			local entState = Entity(NetworkGetEntityFromNetworkId(data.vNet)).state
-			local model = GetEntityModel(ent)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:CheckVehicle", function(source, data, cb)
+		local entState = plsr.State.Entity(NetworkGetEntityFromNetworkId(data.vNet))
+		local model = GetEntityModel(ent)
 
-			local list = exports['pulsar-laptop']:LSUndergroundChoppingFindList(source, data.vNet)
-			local isInProg = exports['pulsar-laptop']:LSUndergroundChoppingInProgress(source, list?.type, model,
-				list?.listId)
-			if list ~= nil and not isInProg then
-				_pChopping[source] = entState.VIN
-				_inProgress[entState.VIN] = {
-					source = source,
-					type = list.type,
-					listId = list.listId,
-					model = GetEntityModel(NetworkGetEntityFromNetworkId(data.vNet)),
-				}
-				_chopped[entState.VIN] = {
-					parts = {},
-					tires = {},
-					body = false,
-				}
-				cb(true)
-			else
-				if isInProg then
-					exports['pulsar-hud']:Notification(source, "error",
-						"Vehicle Already Being Chopped")
-				end
-				cb(false)
+		local list = plsr.Laptop.LSUnderground.Chopping:FindList(source, data.vNet)
+		local isInProg = plsr.Laptop.LSUnderground.Chopping:InProgress(source, list?.type, model, list?.listId)
+		if list ~= nil and not isInProg then
+			_pChopping[source] = entState.VIN
+			_inProgress[entState.VIN] = {
+				source = source,
+				type = list.type,
+				listId = list.listId,
+				model = GetEntityModel(NetworkGetEntityFromNetworkId(data.vNet)),
+			}
+			_chopped[entState.VIN] = {
+				parts = {},
+				tires = {},
+				body = false,
+			}
+			cb(true)
+		else
+			if isInProg then
+				plsr.Execute:Client(source, "Notification", "Error", "Vehicle Already Being Chopped")
 			end
-		end)
+			cb(false)
+		end
+	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopPart", function(source, data, cb)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopPart", function(source, data, cb)
 		if data?.index ~= nil then
-			local pState = Player(source).state
 			local ent = NetworkGetEntityFromNetworkId(data.vNet)
-			local entState = Entity(ent).state
-			local char = exports['pulsar-characters']:FetchCharacterSource(source)
+			local entState = plsr.State.Entity(ent)
+			local char = plsr.Fetch:CharacterSource(source)
 
 			if char ~= nil then
 				if not entState.Owned then
-					local list = exports['pulsar-laptop']:LSUndergroundChoppingFindList(source, data.vNet)
+					local list = plsr.Laptop.LSUnderground.Chopping:FindList(source, data.vNet)
 					if list ~= nil then
 						if not _chopped[entState.VIN].parts[data.index] then
 							_chopped[entState.VIN].parts[data.index] = true
 
-							local repLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping") or 0
+							local repLevel = plsr.Reputation:GetLevel(source, "Chopping") or 0
 							local calcLvl = repLevel
 							if calcLvl < 1 then calcLvl = 1 end
 							calcLvl = math.ceil(calcLvl / 2)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
+							plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+							plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
 						end
 						SetVehicleDoorBroken(NetworkGetEntityFromNetworkId(data.vNet), data.index, true)
 						return cb(true)
@@ -266,27 +259,23 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		cb(false)
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopTire", function(source, data, cb)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopTire", function(source, data, cb)
 		if data?.index ~= nil then
-			local char = exports['pulsar-characters']:FetchCharacterSource(source)
-			local pState = Player(source).state
-			local entState = Entity(NetworkGetEntityFromNetworkId(data.vNet)).state
+			local char = plsr.Fetch:CharacterSource(source)
+			local entState = plsr.State.Entity(NetworkGetEntityFromNetworkId(data.vNet))
 			if char ~= nil then
 				if not entState.Owned then
-					local list = exports['pulsar-laptop']:LSUndergroundChoppingFindList(source, data.vNet)
+					local list = plsr.Laptop.LSUnderground.Chopping:FindList(source, data.vNet)
 					if list ~= nil then
 						if not _chopped[entState.VIN].tires[data.index] then
 							_chopped[entState.VIN].tires[data.index] = true
 
-							local repLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping") or 0
+							local repLevel = plsr.Reputation:GetLevel(source, "Chopping") or 0
 							local calcLvl = repLevel
 							if calcLvl < 1 then calcLvl = 1 end
 							calcLvl = math.ceil(calcLvl / 2)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
-							exports.ox_inventory:AddItem(source, 'rubber',
-								math.random(12, 78) * calcLvl, {}, 1)
+							plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+							plsr.Inventory:AddItem(char:GetData("SID"), 'rubber', math.random(12, 78) * calcLvl, {}, 1)
 						end
 						return cb(true)
 					end
@@ -296,209 +285,188 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		cb(false)
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopVehicle",
-		function(source, data, cb)
-			local char = exports['pulsar-characters']:FetchCharacterSource(source)
-			local pState = Player(source).state
-			local entState = Entity(NetworkGetEntityFromNetworkId(data.vNet)).state
-			if char ~= nil then
-				if not entState.Owned then
-					local list = exports['pulsar-laptop']:LSUndergroundChoppingFindList(source, data.vNet)
-					if list ~= nil or _inProgress[entState.VIN] ~= nil then
-						if not _chopped[entState.VIN]?.body then
-							_chopped[entState.VIN].body = true
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:ChopVehicle", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		local entState = plsr.State.Entity(NetworkGetEntityFromNetworkId(data.vNet))
+		if char ~= nil then
+			if not entState.Owned then
+				local list = plsr.Laptop.LSUnderground.Chopping:FindList(source, data.vNet)
+				if list ~= nil or _inProgress[entState.VIN] ~= nil then
+					if not _chopped[entState.VIN]?.body then
+						_chopped[entState.VIN].body = true
 
-							local repLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping") or 0
-							local calcLvl = repLevel
-							if calcLvl < 1 then calcLvl = 1 end
-							calcLvl = math.ceil(calcLvl / 2)
+						local repLevel = plsr.Reputation:GetLevel(source, "Chopping") or 0
+						local calcLvl = repLevel
+						if calcLvl < 1 then calcLvl = 1 end
+						calcLvl = math.ceil(calcLvl / 2)
 
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
-							exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_lootTables.materials,
-								char:GetData("SID"), 1,
-								calcLvl)
+						plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+						plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+						plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+						plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
 
-							if list?.entry?.hv then
-								exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(
-									_lootTables.materials, char:GetData("SID"), 1,
-									calcLvl)
-
-								if list.type == 3 then
-									exports['pulsar-finance']:CryptoExchangeAdd("VRM", char:GetData("CryptoWallet"),
-										math.random(5, 10))
-								else
-									exports['pulsar-finance']:CryptoExchangeAdd("MALD", char:GetData("CryptoWallet"),
-										math.random(8, 14))
-								end
-								exports['pulsar-finance']:WalletModify(source, math.random(500) + 500)
+						if list?.entry?.hv then
+							plsr.Loot:CustomWeightedSetWithCountAndModifier(config.lootTables.materials, char:GetData("SID"), 1, calcLvl)
+							
+							if list.type == 3 then
+								plsr.Crypto.Exchange:Add("VRM", char:GetData("CryptoWallet"), math.random(5, 10))
 							else
-								if list.type == 3 then
-									exports['pulsar-finance']:CryptoExchangeAdd("VRM", char:GetData("CryptoWallet"),
-										math.random(2, 6))
-								else
-									exports['pulsar-finance']:CryptoExchangeAdd("MALD", char:GetData("CryptoWallet"),
-										math.random(4, 7))
-								end
-								exports['pulsar-finance']:WalletModify(source, math.random(200) + 200)
+								plsr.Crypto.Exchange:Add("MALD", char:GetData("CryptoWallet"), math.random(8, 14))
 							end
+							plsr.Wallet:Modify(source, math.random(500) + 500)
+						else
+							if list.type == 3 then
+								plsr.Crypto.Exchange:Add("VRM", char:GetData("CryptoWallet"), math.random(2, 6))
+							else
+								plsr.Crypto.Exchange:Add("MALD", char:GetData("CryptoWallet"), math.random(4, 7))
+							end
+							plsr.Wallet:Modify(source, math.random(200) + 200)
+						end
 
-							exports['pulsar-characters']:RepAdd(source, "Chopping", 250 * list.type)
-							exports['pulsar-laptop']:LSUndergroundChoppingCreatePickupBox(source,
-								list?.entry?.hv or false, list.type)
+						plsr.Reputation.Modify:Add(source, "Chopping", 250 * list.type)
+						plsr.Laptop.LSUnderground.Chopping:CreatePickupBox(source, list?.entry?.hv or false, list.type)
 
-							SetTimeout(1000 * math.random(20, 60), function()
-								if char ~= nil then
-									exports['pulsar-phone']:EmailSend(
-										source,
-										"shadow@ls.undg",
-										os.time(),
-										"Recent Work",
-										string.format(
-											[[
+						Citizen.SetTimeout(1000 * math.random(20, 60), function()
+							if char ~= nil then
+								plsr.Phone.Email:Send(
+									source,
+									"shadow@ls.undg",
+									os.time(),
+									"Recent Work",
+									string.format(
+										[[
 												Good Work %s<br /><br />
 												Some of my guys were able to get some more materials and parts out of that car, I've left those materials & parts in a package with the salvaging foreman.<br /><br />
 												Goodluck with your future endeavors
 											]],
-											char:GetData("First")
-										)
+										char:GetData("First")
 									)
-								end
-							end)
+								)
+							end
+						end)
 
-							_pChopping[source] = nil
-							exports['pulsar-laptop']:LSUndergroundChoppingRemoveFromList(
-								source,
-								list ~= nil and list?.type or _inProgress[entState.VIN]?.type,
-								GetEntityModel(NetworkGetEntityFromNetworkId(data.vNet)),
-								list ~= nil and list?.listId or _inProgress[entState.VIN]?.listId
-							)
-						end
-
-						local veh = NetworkGetEntityFromNetworkId(data.vNet)
-						local entState = Entity(veh).state
-						_inProgress[entState.VIN] = nil
-						exports['pulsar-vehicles']:Delete(veh, function() end)
-
-						return cb(true)
+						_pChopping[source] = nil
+						plsr.Laptop.LSUnderground.Chopping:RemoveFromList(
+							source,
+							list ~= nil and list?.type or _inProgress[entState.VIN]?.type,
+							GetEntityModel(NetworkGetEntityFromNetworkId(data.vNet)),
+							list ~= nil and list?.listId or _inProgress[entState.VIN]?.listId
+						)
 					end
+
+					local veh = NetworkGetEntityFromNetworkId(data.vNet)
+					local entState = plsr.State.Entity(veh)
+					_inProgress[entState.VIN] = nil
+					plsr.Vehicles:Delete(veh, function() end)
+
+					return cb(true)
 				end
 			end
+		end
 
-			cb(false)
-		end)
+		cb(false)
+	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:CancelChop", function(source, data, cb)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:CancelChop", function(source, data, cb)
 		if _pChopping[source] ~= nil then
 			_inProgress[_pChopping[source]] = nil
 			_pChopping[source] = nil
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:Pickup", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:Pickup", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char then
 			local pickups = char:GetData("ChopPickups") or {}
 
 			if #pickups > 0 then
 				for k, v in ipairs(pickups) do
-					exports.ox_inventory:AddItem(source, "parts_box", 1, {
+					plsr.Inventory:AddItem(char:GetData("SID"), "parts_box", 1, {
 						Items = v.Items,
 					}, 1)
 				end
 				char:SetData("ChopPickups", {})
 			else
-				exports['pulsar-hud']:Notification(source, "error", "You Have Nothing To Pickup")
+				plsr.Execute:Client(source, "Notification", "Error", "You Have Nothing To Pickup")
 			end
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Chopping:GetPublicList",
-		function(source, data, cb)
-			local char = exports['pulsar-characters']:FetchCharacterSource(source)
-			if char ~= nil then
-				if not _emailed[char:GetData("ID")] or os.time() > _emailed[char:GetData("ID")] then
-					_emailed[char:GetData("ID")] = os.time() + (60 * 10)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Chopping:GetPublicList", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		if char ~= nil then
+			if not _emailed[char:GetData("ID")] or os.time() > _emailed[char:GetData("ID")] then
+				_emailed[char:GetData("ID")] = os.time() + (60 * 10)
 
-					local str = [[
+				local str = [[
 					Hello %s<br /><br />
 					Here is the current outstanding public requests.<br /><br />
 					Requested Vehicles:
 					<ul>
 				]]
 
-					for k, v in ipairs(_publicChoplist.list) do
-						if v.hv then
-							str = str .. string.format("<li>(HIGHVALUE) %s</li>", v.name)
-						else
-							str = str .. string.format("<li>%s</li>", v.name)
-						end
+				for k, v in ipairs(_publicChoplist.list) do
+					if v.hv then
+						str = str .. string.format("<li>(HIGHVALUE) %s</li>", v.name)
+					else
+						str = str .. string.format("<li>%s</li>", v.name)
 					end
+				end
 
-					exports['pulsar-phone']:EmailSend(
-						source,
-						"shadow@ls.undg",
-						os.time(),
-						"Oustanding Public Requests",
-						string.format(str, char:GetData("First")),
-						{},
-						(os.time() + (60 * 20))
-					)
+				plsr.Phone.Email:Send(
+					source,
+					"shadow@ls.undg",
+					os.time(),
+					"Oustanding Public Requests",
+					string.format(str, char:GetData("First")),
+					{},
+					(os.time() + (60 * 20))
+				)
 
-					if char:GetData("ChopLists") ~= nil and #char:GetData("ChopLists") > 0 then
-						local str = [[
+				if char:GetData("ChopLists") ~= nil and #char:GetData("ChopLists") > 0 then
+					local str = [[
 						Hello %s<br /><br />
 						Here is the current outstanding personal shopping lists you have.
 					]]
-						for k, v in pairs(char:GetData("ChopLists")) do
-							str = str .. [[<br /><br />Requested Vehicles:<ul>]]
+					for k, v in pairs(char:GetData("ChopLists")) do
+						str = str .. [[<br /><br />Requested Vehicles:<ul>]]
 
-							for k, v in ipairs(v) do
-								if v.hv then
-									str = str .. string.format("<li>(HIGHVALUE) %s</li>", v.name)
-								else
-									str = str .. string.format("<li>%s</li>", v.name)
-								end
+						for k, v in ipairs(v) do
+							if v.hv then
+								str = str .. string.format("<li>(HIGHVALUE) %s</li>", v.name)
+							else
+								str = str .. string.format("<li>%s</li>", v.name)
 							end
-
-							str = str .. [[</ul>]]
 						end
 
-						exports['pulsar-phone']:EmailSend(
-							source,
-							"shadow@ls.undg",
-							os.time(),
-							"Oustanding Personal Requests",
-							string.format(str, char:GetData("First"))
-						)
+						str = str .. [[</ul>]]
 					end
-				else
-					exports['pulsar-hud']:Notification(source, "error",
-						"Recently Requested Active Chop Lists")
-				end
-			end
-		end)
-end)
 
-function RegisterItems()
-	exports.ox_inventory:RegisterUse("choplist", "Chopping", function(source, item, itemData)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+					plsr.Phone.Email:Send(
+						source,
+						"shadow@ls.undg",
+						os.time(),
+						"Oustanding Personal Requests",
+						string.format(str, char:GetData("First"))
+					)
+				end
+			else
+				plsr.Execute:Client(source, "Notification", "Error", "Recently Requested Active Chop Lists")
+			end
+		end
+	end)
+
+	plsr.Inventory.Items:RegisterUse("choplist", "Chopping", function(source, item, itemData)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char ~= nil then
 			if not item.MetaData.Owner or item.MetaData.Owner == char:GetData("SID") then
-				if exports.ox_inventory:RemoveSlot(item.Owner, item.Name, 1, item.Slot, 1) then
+				if plsr.Inventory.Items:RemoveSlot(item.Owner, item.Name, 1, item.Slot, 1) then
 					local personalLists = char:GetData("ChopLists") or {}
-					personalLists[exports['pulsar-core']:SequenceGet("PersonalChopList")] = item.MetaData.ChopList
+					personalLists[plsr.Sequence:Get("PersonalChopList")] = item.MetaData.ChopList
 					char:SetData("ChopLists", personalLists)
 
-					if hasValue(char:GetData("States") or {}, "ACCESS_LSUNDERGROUND") and exports['pulsar-characters']:RepHasLevel(source, "Chopping", 3) then
-						exports['pulsar-laptop']:AddNotification(
+					if hasValue(char:GetData("States") or {}, "ACCESS_LSUNDERGROUND") and plsr.Reputation:HasLevel(source, "Chopping", 3) then
+						plsr.Laptop.Notification:Add(
 							source,
 							"New Personal Choplist",
 							"You've Received A New Personal Choplist",
@@ -514,7 +482,7 @@ function RegisterItems()
 							Requested Vehicles:
 							<ul>
 						]]
-
+	
 						for k, v in ipairs(item.MetaData.ChopList) do
 							if v.hv then
 								str = str .. string.format("<li>(HIGHVALUE) %s</li>", v.name)
@@ -522,10 +490,10 @@ function RegisterItems()
 								str = str .. string.format("<li>%s</li>", v.name)
 							end
 						end
-
+	
 						str = str .. "</ul>"
-
-						exports['pulsar-phone']:EmailSend(
+	
+						plsr.Phone.Email:Send(
 							source,
 							"shadow@ls.undg",
 							os.time(),
@@ -535,16 +503,10 @@ function RegisterItems()
 					end
 				end
 			else
-				exports['pulsar-hud']:Notification(source, "error", "Cannot Use A List You Didn't Buy")
+				plsr.Execute:Client(source, "Notification", "Error", "Cannot Use A List You Didn't Buy")
 			end
 		end
 	end)
-end
-
-RegisterNetEvent('ox_inventory:ready', function()
-	if GetResourceState(GetCurrentResourceName()) == 'started' then
-		RegisterItems()
-	end
 end)
 
 function TableLength(tbl)
@@ -555,336 +517,320 @@ function TableLength(tbl)
 	return cnt
 end
 
-exports('LSUndergroundChoppingGenerateList', function(length, hvCount)
-	local _l = {}
+LAPTOP.LSUnderground = LAPTOP.LSUnderground or {}
+LAPTOP.LSUnderground.Chopping = {
+	GenerateList = function(self, length, hvCount)
+		local _l = {}
 
-	if length <= 0 then
-		length = 1
-	end
-
-	for i = 1, length do
-		local ind = math.random(#_models.Normal)
-		while _l[_models.Normal[ind]] ~= nil do
-			ind = math.random(#_models.Normal)
+		if length <= 0 then
+			length = 1
 		end
 
-		_l[_models.Normal[ind]] = {
-			model = _models.Normal[ind].model,
-			name = _models.Normal[ind].name,
-			hv = false,
-		}
-	end
-
-	if hvCount > 0 then
-		for i = 1, hvCount do
-			local ind = math.random(#_models.Priority)
-			while _l[_models.Priority[ind]] ~= nil do
-				ind = math.random(#_models.Priority)
+		for i = 1, length do
+			local ind = math.random(#config.models.Normal)
+			while _l[config.models.Normal[ind]] ~= nil do
+				ind = math.random(#config.models.Normal)
 			end
 
-			_l[_models.Priority[ind]] = {
-				model = _models.Priority[ind].model,
-				name = _models.Priority[ind].name,
-				hv = true,
+			_l[config.models.Normal[ind]] = {
+				model = config.models.Normal[ind].model,
+				name = config.models.Normal[ind].name,
+				hv = false,
 			}
 		end
-	end
 
-	local t = {}
-	for k, v in pairs(_l) do
-		table.insert(t, v)
-	end
-	return t
-end)
-
-exports('LSUndergroundChoppingInProgress', function(source, type, model, listId)
-	if type == nil or type == 3 and listId == nil then return false end
-
-	if type == 1 or type == 2 then
-		for k, v in pairs(_inProgress) do
-			if v.type == type and v.model == model and v.source ~= source then
-				exports['pulsar-hud']:Notification(source, "error",
-					"Vehicle Type Is Already Being Chopped")
-				return true
+		if hvCount > 0 then
+			for i = 1, hvCount do
+				local ind = math.random(#config.models.Priority)
+				while _l[config.models.Priority[ind]] ~= nil do
+					ind = math.random(#config.models.Priority)
+				end
+	
+				_l[config.models.Priority[ind]] = {
+					model = config.models.Priority[ind].model,
+					name = config.models.Priority[ind].name,
+					hv = true,
+				}
 			end
 		end
-	elseif type == 3 then
-		for k, v in pairs(_inProgress) do
-			if v.type == type and v.model == model and v.source ~= source and v.listId == listId then
-				exports['pulsar-hud']:Notification(source, "error",
-					"Vehicle Type Is Already Being Chopped")
-				return true
+
+		local t = {}
+		for k, v in pairs(_l) do
+			table.insert(t, v)
+		end
+		return t
+	end,
+	InProgress = function(self, source, type, model, listId)
+		if type == nil or type == 3 and listId == nil then return false end
+
+		if type == 1 or type == 2 then
+			for k, v in pairs(_inProgress) do
+				if v.type == type and v.model == model and v.source ~= source then
+					plsr.Execute:Client(source, "Notification", "Error", "Vehicle Type Is Already Being Chopped")
+					return true
+				end
+			end
+		elseif type == 3 then
+			for k, v in pairs(_inProgress) do
+				if v.type == type and v.model == model and v.source ~= source and v.listId == listId then
+					plsr.Execute:Client(source, "Notification", "Error", "Vehicle Type Is Already Being Chopped")
+					return true
+				end
 			end
 		end
-	end
 
-	return false
-end)
-
-exports('LSUndergroundChoppingFindList', function(source, vehNet)
-	local char = exports['pulsar-characters']:FetchCharacterSource(source)
-	if char ~= nil then
-		local pState = Player(source).state
-		local ent = NetworkGetEntityFromNetworkId(vehNet)
-		local chopLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping")
-
-		if ent ~= nil then
-			local model = GetEntityModel(ent)
-			if pState.inChopZone == "chopping_public" and exports['pulsar-characters']:RepGetLevel(source, "Salvaging") >= 7 then
-				local chopEntry = exports['pulsar-laptop']:LSUndergroundChoppingIsOnList(_publicChoplist.list, model)
-				if not chopEntry then
-					exports['pulsar-hud']:Notification(source, "error", "Vehicle Not On Chop List")
-					return nil
-				elseif exports['pulsar-laptop']:LSUndergroundChoppingInProgress(source, 1, model) then
-					return nil
-				else
-					return { entry = chopEntry, type = 1, model = model }
-				end
-			elseif
-				pState.inChopZone == "chopping_private"
-				and (
-					hasValue(char:GetData("States") or {}, "ACCESS_LSUNDERGROUND") or
-					exports['pulsar-characters']:RepHasLevel(source, "Chopping", 5)
-				)
-			then
-				local chopEntry = exports['pulsar-laptop']:LSUndergroundChoppingIsOnList(_vipChopList.list, model)
-				if not chopEntry then
-					exports['pulsar-hud']:Notification(source, "error", "Vehicle Not On Chop List")
-					return nil
-				elseif exports['pulsar-laptop']:LSUndergroundChoppingInProgress(source, 2, model) then
-					return nil
-				else
-					return { entry = chopEntry, type = 2, model = model }
-				end
-			elseif
-				pState.inChopZone == "chopping_personal"
-				and (char:GetData("ChopLists") ~= nil and TableLength(char:GetData("ChopLists")) > 0)
-			then
-				local personallists = char:GetData("ChopLists")
-				for k, v in pairs(personallists) do
-					local chopEntry = exports['pulsar-laptop']:LSUndergroundChoppingIsOnList(v, model)
-					if chopEntry then
-						return { listId = k, entry = chopEntry, type = 3, model = model }
-					end
-				end
-
-				exports['pulsar-hud']:Notification(source, "error", "Vehicle Not On Chop List")
-				return nil
-			else
-				exports['pulsar-hud']:Notification(source, "error",
-					"Not In A Valid Dropoff Location")
-				return nil
-			end
-		else
-			exports['pulsar-hud']:Notification(source, "error", "Invalid Entity")
-			return nil
-		end
-	end
-end)
-
-exports('LSUndergroundChoppingIsOnList', function(list, model)
-	for k, v in ipairs(list) do
-		if v.model == model then
-			return v
-		end
-	end
-	return false
-end)
-
-exports('LSUndergroundChoppingRemoveFromList', function(source, type, model, listId)
-	if type == 1 then
-		for k, v in ipairs(_publicChoplist.list) do
-			if v.model == model then
-				table.remove(_publicChoplist.list, k)
-
-				if #_publicChoplist.list <= 0 then
-					exports['pulsar-core']:LoggerTrace("Chopping", "Generating New Public Chop List")
-					_publicChoplist = {
-						list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 2),
-						public = true,
-					}
-
-					for k, v in pairs(_inProgress) do
-						if v.type == 1 then
-							for k2, v2 in pairs(_pChopping) do
-								if v2 == k then
-									TriggerClientEvent("Laptop:Client:LSUnderground:Chopping:CancelCurrent", k2)
-									_pChopping[k2] = nil
-								end
-							end
-							_inProgress[k] = nil
-							_chopped[k] = nil
-						end
-					end
-
-					for k, v in pairs(exports['pulsar-characters']:FetchAllCharacters()) do
-						if v ~= nil then
-							local dutyData = exports['pulsar-jobs']:DutyGet(v:GetData("Source"))
-							if (
-									exports['pulsar-characters']:RepHasLevel(v:GetData("Source"), "Chopping", 5) or
-									hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
-								) and (not dutyData or dutyData.Id ~= "police") then
-								exports['pulsar-laptop']:AddNotification(
-									v:GetData("Source"),
-									"New Chop List",
-									"A New Public Chop List Is Available",
-									os.time() * 1000,
-									10000,
-									"lsunderground",
-									{
-										view = "",
-									}
-								)
-							end
-						end
-					end
-				end
-
-				return true
-			end
-		end
-	elseif type == 2 then
-		for k, v in ipairs(_vipChopList.list) do
-			if v.model == model then
-				table.remove(_vipChopList.list, k)
-
-				if #_vipChopList.list <= 0 then
-					exports['pulsar-core']:LoggerTrace("Chopping", "Generating New VIP Chop List")
-					_vipChopList = {
-						list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 4),
-						public = true,
-					}
-
-					for k, v in pairs(_inProgress) do
-						if v.type == 2 then
-							for k2, v2 in pairs(_pChopping) do
-								if v2 == k then
-									TriggerClientEvent("Laptop:Client:LSUnderground:Chopping:CancelCurrent", k2)
-									_pChopping[k2] = nil
-								end
-							end
-							_inProgress[k] = nil
-							_chopped[k] = nil
-						end
-					end
-
-					for k, v in pairs(exports['pulsar-characters']:FetchAllCharacters()) do
-						if v ~= nil then
-							local dutyData = exports['pulsar-jobs']:DutyGet(v:GetData("Source"))
-							if (
-									exports['pulsar-characters']:RepHasLevel(v:GetData("Source"), "Chopping", 5) or
-									hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
-								) and (not dutyData or dutyData.Id ~= "police") then
-								exports['pulsar-laptop']:AddNotification(
-									v:GetData("Source"),
-									"New Chop List",
-									"A New Private Chop List Is Available",
-									os.time() * 1000,
-									10000,
-									"lsunderground",
-									{
-										view = "",
-									}
-								)
-							end
-						end
-					end
-				end
-
-				return true
-			end
-		end
-	elseif type == 3 then
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+		return false
+	end,
+	FindList = function(self, source, vehNet)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char ~= nil then
-			local mylists = char:GetData("ChopLists")
-			if mylists ~= nil and mylists[listId] ~= nil then
-				local found = false
-				for k, v in pairs(mylists[listId]) do
-					if v.model == model then
-						table.remove(mylists[listId], k)
+			local ent = NetworkGetEntityFromNetworkId(vehNet)
+			local chopLevel = plsr.Reputation:GetLevel(source, "Chopping")
 
-						if #mylists[listId] <= 0 then
-							mylists[listId] = nil
-						end
-
-						char:SetData("ChopLists", mylists)
-						found = true
-						break
+			if ent ~= nil then
+				local model = GetEntityModel(ent)
+				if plsr.State:Player(source).inChopZone == "chopping_public" and plsr.Reputation:GetLevel(source, "Salvaging") >= 7 then
+					local chopEntry = plsr.Laptop.LSUnderground.Chopping:IsOnList(_publicChoplist.list, model)
+					if not chopEntry then
+						plsr.Execute:Client(source, "Notification", "Error", "Vehicle Not On Chop List")
+						return nil
+					elseif plsr.Laptop.LSUnderground.Chopping:InProgress(source, 1, model) then
+						return nil
+					else
+						return { entry = chopEntry, type = 1, model = model }
 					end
-				end
+				elseif
+					plsr.State:Player(source).inChopZone == "chopping_private"
+					and (
+						hasValue(char:GetData("States") or {}, "ACCESS_LSUNDERGROUND") or
+						plsr.Reputation:HasLevel(source, "Chopping", 5)
+					)
+				then
+					local chopEntry = plsr.Laptop.LSUnderground.Chopping:IsOnList(_vipChopList.list, model)
+					if not chopEntry then
+						plsr.Execute:Client(source, "Notification", "Error", "Vehicle Not On Chop List")
+						return nil
+					elseif plsr.Laptop.LSUnderground.Chopping:InProgress(source, 2, model) then
+						return nil
+					else
+						return { entry = chopEntry, type = 2, model = model }
+					end
+				elseif
+					plsr.State:Player(source).inChopZone == "chopping_personal"
+					and (char:GetData("ChopLists") ~= nil and TableLength(char:GetData("ChopLists")) > 0)
+				then
+					local personallists = char:GetData("ChopLists")
+					for k, v in pairs(personallists) do
+						local chopEntry = plsr.Laptop.LSUnderground.Chopping:IsOnList(v, model)
+						if chopEntry then
+							return { listId = k, entry = chopEntry, type = 3, model = model }
+						end
+					end
 
-				return found
+					plsr.Execute:Client(source, "Notification", "Error", "Vehicle Not On Chop List")
+					return nil
+				else
+					plsr.Execute:Client(source, "Notification", "Error", "Not In A Valid Dropoff Location")
+					return nil
+				end
+			else
+				plsr.Execute:Client(source, "Notification", "Error", "Invalid Entity")
+				return nil
 			end
 		end
-	end
+	end,
+	IsOnList = function(self, list, model)
+		for k, v in ipairs(list) do
+			if v.model == model then
+				return v
+			end
+		end
+		return false
+	end,
+	RemoveFromList = function(self, source, type, model, listId)
+		if type == 1 then
+			for k, v in ipairs(_publicChoplist.list) do
+				if v.model == model then
+					table.remove(_publicChoplist.list, k)
 
-	return false
-end)
+					if #_publicChoplist.list <= 0 then
+						plsr.Logger:Trace("Chopping", "Generating New Public Chop List")
+						_publicChoplist = {
+							list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 2),
+							public = true,
+						}
+			
+						for k, v in pairs(_inProgress) do
+							if v.type == 1 then
+								for k2, v2 in pairs(_pChopping) do
+									if v2 == k then
+										TriggerClientEvent("Laptop:Client:LSUnderground:Chopping:CancelCurrent", k2)
+										_pChopping[k2] = nil
+									end
+								end
+								_inProgress[k] = nil
+								_chopped[k] = nil
+							end
+						end
+						
+						for k, v in pairs(plsr.Fetch:AllCharacters()) do
+							if v ~= nil then
+								local dutyData = plsr.Jobs.Duty:Get(v:GetData("Source"))
+								if (
+									plsr.Reputation:HasLevel(v:GetData("Source"), "Chopping", 5) or
+									hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
+								) and (not dutyData or dutyData.Id ~= "police") then
+									plsr.Laptop.Notification:Add(
+										v:GetData("Source"),
+										"New Chop List",
+										"A New Public Chop List Is Available",
+										os.time() * 1000,
+										10000,
+										"lsunderground",
+										{
+											view = "",
+										}
+									)
+								end
+							end
+						end
+					end
 
-exports('LSUndergroundChoppingCreatePickupBox', function(source, wasHv, type)
-	local char = exports['pulsar-characters']:FetchCharacterSource(source)
-	if char ~= nil then
-		local pickups = char:GetData("ChopPickups") or {}
+					return true
+				end
+			end
+		elseif type == 2 then
+			for k, v in ipairs(_vipChopList.list) do
+				if v.model == model then
+					table.remove(_vipChopList.list, k)
 
-		local repLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping") or 0
-		local calcLvl = repLevel
-		if calcLvl < 1 then calcLvl = 1 end
-		calcLvl = math.ceil(calcLvl / 2)
+					if #_vipChopList.list <= 0 then
+						plsr.Logger:Trace("Chopping", "Generating New VIP Chop List")
+						_vipChopList = {
+							list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 4),
+							public = true,
+						}
+			
+						for k, v in pairs(_inProgress) do
+							if v.type == 2 then
+								for k2, v2 in pairs(_pChopping) do
+									if v2 == k then
+										TriggerClientEvent("Laptop:Client:LSUnderground:Chopping:CancelCurrent", k2)
+										_pChopping[k2] = nil
+									end
+								end
+								_inProgress[k] = nil
+								_chopped[k] = nil
+							end
+						end
+						
+						for k, v in pairs(plsr.Fetch:AllCharacters()) do
+							if v ~= nil then
+								local dutyData = plsr.Jobs.Duty:Get(v:GetData("Source"))
+								if (
+									plsr.Reputation:HasLevel(v:GetData("Source"), "Chopping", 5) or
+									hasValue(v:GetData("States") or {}, "ACCESS_LSUNDERGROUND")
+								) and (not dutyData or dutyData.Id ~= "police") then
+									plsr.Laptop.Notification:Add(
+										v:GetData("Source"),
+										"New Chop List",
+										"A New Private Chop List Is Available",
+										os.time() * 1000,
+										10000,
+										"lsunderground",
+										{
+											view = "",
+										}
+									)
+								end
+							end
+						end
+					end
 
-		local items = {
-			exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-				char:GetData("SID"), 1, calcLvl, true),
-			exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-				char:GetData("SID"), 1, calcLvl, true),
-			exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-				char:GetData("SID"), 1, calcLvl, true),
-		}
+					return true
+				end
+			end
+		elseif type == 3 then
+			local char = plsr.Fetch:CharacterSource(source)
+			if char ~= nil then
+				local mylists = char:GetData("ChopLists")
+				if mylists ~= nil and mylists[listId] ~= nil then
+					local found = false
+					for k, v in pairs(mylists[listId]) do
+						if v.model == model then
+							table.remove(mylists[listId], k)
 
-		if wasHv then
-			table.insert(
-				items,
-				exports.ox_inventory:LootCustomWeightedSetWithCount(_boxTables.materials, char:GetData("SID"),
-					1, true)
-			)
-			table.insert(
-				items,
-				exports.ox_inventory:LootCustomWeightedSetWithCount(_boxTables.materials, char:GetData("SID"),
-					1, true)
-			)
-			table.insert(
-				items,
-				exports.ox_inventory:LootCustomWeightedSetWithCount(_boxTables.materials, char:GetData("SID"),
-					1, true)
-			)
-			table.insert(
-				items,
-				exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-					char:GetData("SID"), 1, calcLvl,
-					true)
-			)
+							if #mylists[listId] <= 0 then
+								mylists[listId] = nil
+							end
+
+							char:SetData("ChopLists", mylists)
+							found = true
+							break
+						end
+					end
+
+					return found
+				end
+			end
 		end
 
-		local repLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping") or 0
-		if repLevel >= 4 then
-			table.insert(
-				items,
-				exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-					char:GetData("SID"), 1, calcLvl,
-					true)
-			)
-			if repLevel >= 5 then
+		return false
+	end,
+	CreatePickupBox = function(self, source, wasHv, type)
+		local char = plsr.Fetch:CharacterSource(source)
+		if char ~= nil then
+			local pickups = char:GetData("ChopPickups") or {}
+
+			local repLevel = plsr.Reputation:GetLevel(source, "Chopping") or 0
+			local calcLvl = repLevel
+			if calcLvl < 1 then calcLvl = 1 end
+			calcLvl = math.ceil(calcLvl / 2)
+			
+			local items = {
+				plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true),
+				plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true),
+				plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true),
+			}
+
+			if wasHv then
 				table.insert(
 					items,
-					exports.ox_inventory:LootCustomWeightedSetWithCountAndModifier(_boxTables.materials,
-						char:GetData("SID"), 1, calcLvl,
-						true)
+					plsr.Loot:CustomWeightedSetWithCount(config.boxTables.materials, char:GetData("SID"), 1, true)
+				)
+				table.insert(
+					items,
+					plsr.Loot:CustomWeightedSetWithCount(config.boxTables.materials, char:GetData("SID"), 1, true)
+				)
+				table.insert(
+					items,
+					plsr.Loot:CustomWeightedSetWithCount(config.boxTables.materials, char:GetData("SID"), 1, true)
+				)
+				table.insert(
+					items,
+					plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true)
 				)
 			end
+
+			local repLevel = plsr.Reputation:GetLevel(source, "Chopping") or 0
+			if repLevel >= 4 then
+				table.insert(
+					items,
+					plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true)
+				)
+				if repLevel >= 5 then
+					table.insert(
+						items,
+						plsr.Loot:CustomWeightedSetWithCountAndModifier(config.boxTables.materials, char:GetData("SID"), 1, calcLvl, true)
+					)
+				end
+			end
+			table.insert(pickups, {
+				Items = items,
+			})
+			char:SetData("ChopPickups", pickups)
 		end
-		table.insert(pickups, {
-			Items = items,
-		})
-		char:SetData("ChopPickups", pickups)
-	end
-end)
+	end,
+}
+
+

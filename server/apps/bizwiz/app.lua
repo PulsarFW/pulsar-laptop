@@ -1,9 +1,11 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/server.lua"))()
+
 local bizWizJobs = {}
 
 function CheckBusinessPermissions(source, permission)
-	local onDuty = exports['pulsar-jobs']:DutyGet(source)
+    local onDuty = plsr.Jobs.Duty:Get(source)
 	if onDuty and onDuty.Id and bizWizJobs[onDuty.Id] then
-		if (not permission) or exports['pulsar-jobs']:HasPermissionInJob(source, onDuty.Id, permission) then
+		if (not permission) or plsr.Jobs.Permissions:HasPermissionInJob(source, onDuty.Id, permission) then
 			return onDuty.Id
 		end
 	end
@@ -11,17 +13,17 @@ function CheckBusinessPermissions(source, permission)
 end
 
 AddEventHandler('Job:Server:DutyAdd', function(dutyData, source)
-	local job = exports['pulsar-jobs']:HasJob(source, dutyData.Id)
+	local job = plsr.Jobs.Permissions:HasJob(source, dutyData.Id)
 	if job then
-		local hasConfig = _bizWizConfig[job.Id]
-		local bizWiz = exports['pulsar-jobs']:DataGet(job.Id, "bizWiz")
+		local hasConfig = config.bizwiz.businesses[job.Id]
+		local bizWiz = plsr.Jobs.Data:Get(job.Id, "bizWiz")
 
 		if hasConfig then
 			bizWiz = hasConfig.type
 		end
 
-		if job and bizWiz and _bizWizTypes[bizWiz] then
-			local bizWizLogo = exports['pulsar-jobs']:DataGet(job.Id, "bizWizLogo")
+		if job and bizWiz and config.bizwiz.types[bizWiz] then
+			local bizWizLogo = plsr.Jobs.Data:Get(job.Id, "bizWizLogo")
 
 			if not bizWizLogo and hasConfig then
 				bizWizLogo = hasConfig.logo
@@ -29,15 +31,14 @@ AddEventHandler('Job:Server:DutyAdd', function(dutyData, source)
 
 			bizWizJobs[job.Id] = true
 
-			exports['pulsar-laptop']:UpdateJobData(source)
-			TriggerClientEvent("Laptop:Client:BizWiz:Login", source, bizWizLogo or "https://i.imgur.com/ORHSuSM.png",
-				_bizWizTypes[bizWiz], GetBusinessNotices(job.Id))
+			plsr.Laptop:UpdateJobData(source)
+			TriggerClientEvent("Laptop:Client:BizWiz:Login", source, bizWizLogo or "https://changeme.com/logo.png", config.bizwiz.types[bizWiz], GetBusinessNotices(job.Id))
 		end
 	end
 end)
 
 AddEventHandler('Job:Server:DutyRemove', function(dutyData, source, SID)
-	if bizWizJobs[dutyData.Id] then
+    if bizWizJobs[dutyData.Id] then
 		TriggerClientEvent("Laptop:Client:BizWiz:Logout", source)
 	end
 end)
@@ -54,63 +55,50 @@ function GetBusinessNotices(job)
 end
 
 AddEventHandler("Laptop:Server:RegisterCallbacks", function()
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:EmployeeSearch", function(source, data, cb)
-		local job = CheckBusinessPermissions(source)
+  plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:EmployeeSearch", function(source, data, cb)
+    local job = CheckBusinessPermissions(source)
 		if job then
-			local query = [[
-                SELECT SID, First, Last, Jobs
-                FROM characters
-                WHERE (First LIKE @term OR Last LIKE @term OR SID LIKE @term)
-                LIMIT 4
-            ]]
-			local params = {
-				['@term'] = '%' .. (data.term or '') .. '%'
-			}
+			local like = "%" .. (data.term or "") .. "%"
+			plsr.Database:Query(
+				"SELECT `sid`, `data` FROM `characters` WHERE `deleted` = 0 AND JSON_CONTAINS(JSON_EXTRACT(`data`, '$.Jobs'), JSON_OBJECT('Id', ?), '$') AND (CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.First')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.Last'))) LIKE ? OR `sid` LIKE ?) LIMIT 4",
+				{ job, like, like },
+				function(success, results)
+					if not success then
+						cb({})
+						return
+					end
 
-			MySQL.Async.fetchAll(query, params, function(results)
-				if not results then
-					cb({})
-					return
-				end
-
-				local filteredResults = {}
-				for _, v in ipairs(results) do
-					local jobs = json.decode(v.Jobs)
-					for _, j in ipairs(jobs) do
-						if j.Id == job then
-							table.insert(filteredResults, {
-								SID = v.SID,
-								First = v.First,
-								Last = v.Last
-							})
-							break
+					local employees = {}
+					for k, row in ipairs(results) do
+						local ok, v = pcall(json.decode, row.data)
+						if ok and type(v) == "table" then
+							table.insert(employees, { SID = row.sid, First = v.First, Last = v.Last })
 						end
 					end
+					cb(employees)
 				end
-
-				cb(filteredResults)
-			end)
+			)
 		else
 			cb(false)
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:GetTwitterProfile", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, "JOB_MANAGEMENT")
+	plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:GetTwitterProfile", function(source, data, cb)
+    local job = CheckBusinessPermissions(source, "JOB_MANAGEMENT")
 		if job then
 			cb({
 				success = true,
-				pfp = exports['pulsar-jobs']:DataGet(job, "TwitterAvatar")
+				pfp = plsr.Jobs.Data:Get(job, "TwitterAvatar")
 			})
 		else
 			cb(false)
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:SetTwitterProfile", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, "JOB_MANAGEMENT")
+	plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:SetTwitterProfile", function(source, data, cb)
+    local job = CheckBusinessPermissions(source, "JOB_MANAGEMENT")
 		if job then
-			local success = exports['pulsar-jobs']:DataSet(job, "TwitterAvatar", data.profile)
+			local success = plsr.Jobs.Data:Set(job, "TwitterAvatar", data.profile)
 			if success then
 				cb(data.profile)
 			else
@@ -121,15 +109,15 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:SendTweet", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, "TABLET_TWEET")
+	plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:SendTweet", function(source, data, cb)
+    local job = CheckBusinessPermissions(source, "TABLET_TWEET")
 		if job then
-			local jobData = exports['pulsar-jobs']:Get(job)
-			local avatar = exports['pulsar-jobs']:DataGet(job, "TwitterAvatar")
-
-			exports['pulsar-phone']:TwitterPost(
-				-1,
-				-1,
+			local jobData = plsr.Jobs:Get(job)
+			local avatar = plsr.Jobs.Data:Get(job, "TwitterAvatar")
+			
+			plsr.Phone.Twitter:Post(
+				-1, 
+				-1, 
 				{
 					name = jobData.Name,
 					picture = avatar,
@@ -146,18 +134,18 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		end
 	end)
 
-	exports["pulsar-chat"]:RegisterAdminCommand("bizwizset", function(source, args, rawCommand)
+	plsr.Chat:RegisterAdminCommand("bizwizset", function(source, args, rawCommand)
 		local setting = args[2]
 		if setting == "false" then
 			setting = false
 		end
 
-		local res = exports['pulsar-jobs']:DataSet(args[1], "bizWiz", setting)
+    local res = plsr.Jobs.Data:Set(args[1], "bizWiz", setting)
 
 		if res?.success then
-			exports["pulsar-chat"]:SendSystemSingle(source, "Success")
+			plsr.Chat.Send.System:Single(source, "Success")
 		else
-			exports["pulsar-chat"]:SendSystemSingle(source, "Failed")
+			plsr.Chat.Send.System:Single(source, "Failed")
 		end
 	end, {
 		help = "[Admin] Grant a Business Access to BizWiz App",
@@ -173,18 +161,18 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		}
 	}, 2)
 
-	exports["pulsar-chat"]:RegisterAdminCommand("bizwizlogo", function(source, args, rawCommand)
+	plsr.Chat:RegisterAdminCommand("bizwizlogo", function(source, args, rawCommand)
 		local setting = args[2]
 		if setting == "false" then
 			setting = false
 		end
 
-		local res = exports['pulsar-jobs']:DataSet(args[1], "bizWizLogo", setting)
+    local res = plsr.Jobs.Data:Set(args[1], "bizWizLogo", setting)
 
 		if res?.success then
-			exports["pulsar-chat"]:SendSystemSingle(source, "Success")
+			plsr.Chat.Send.System:Single(source, "Success")
 		else
-			exports["pulsar-chat"]:SendSystemSingle(source, "Failed")
+			plsr.Chat.Send.System:Single(source, "Failed")
 		end
 	end, {
 		help = "[Admin] Set BizWiz Logo",
@@ -200,34 +188,34 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		}
 	}, 2)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:ViewVehicleFleet", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, "FLEET_MANAGEMENT")
+	plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:ViewVehicleFleet", function(source, data, cb)
+    local job = CheckBusinessPermissions(source, "FLEET_MANAGEMENT")
 		if job then
-			exports['pulsar-vehicles']:OwnedGetAll(nil, 1, job, function(vehicles)
-				for k, v in ipairs(vehicles) do
-					if v.Storage then
-						if v.Storage.Type == 0 then
-							v.Storage.Name = exports['pulsar-vehicles']:GaragesImpound().name
-						elseif v.Storage.Type == 1 then
-							v.Storage.Name = exports['pulsar-vehicles']:GaragesGet(v.Storage.Id).name
-						elseif v.Storage.Type == 2 then
-							local prop = exports['pulsar-properties']:Get(v.Storage.Id)
-							v.Storage.Name = prop?.label
-						end
-					end
-				end
+			plsr.Vehicles.Owned:GetAll(nil, 1, job, function(vehicles)
+        for k, v in ipairs(vehicles) do
+          if v.Storage then
+            if v.Storage.Type == 0 then
+              v.Storage.Name = plsr.Vehicles.Garages:Impound().name
+            elseif v.Storage.Type == 1 then
+              v.Storage.Name = plsr.Vehicles.Garages:Get(v.Storage.Id).name
+            elseif v.Storage.Type == 2 then
+              local prop = plsr.Properties:Get(v.Storage.Id)
+              v.Storage.Name = prop?.label
+            end
+          end
+        end
 
-				cb(vehicles)
-			end)
+        cb(vehicles)
+      end)
 		else
 			cb(false)
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:TrackFleetVehicle", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, "FLEET_MANAGEMENT")
+	plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:TrackFleetVehicle", function(source, data, cb)
+    local job = CheckBusinessPermissions(source, "FLEET_MANAGEMENT")
 		if job then
-			cb(exports['pulsar-vehicles']:OwnedTrack(data.vehicle))
+			cb(plsr.Vehicles.Owned:Track(data.vehicle))
 		else
 			cb(false)
 		end

@@ -10,28 +10,31 @@ AddEventHandler("Characters:Client:Spawn", function()
         Wait(100)
     end
 
-    exports['pulsar-pedinteraction']:Add("lsu-pickup-guy", `s_m_y_dockwork_01`, GlobalState.LSUPickupLocation.coords,
-        GlobalState.LSUPickupLocation.heading, 50.0, {
-            {
-                icon = "box-taped",
-                text = "Collect Order",
-                event = "Laptop:Client:LSUnderground:Collect",
-            },
-        }, 'box-taped', 'WORLD_HUMAN_SMOKING', true)
+    plsr.PedInteraction:Add("lsu-pickup-guy", `s_m_y_dockwork_01`, GlobalState.LSUPickupLocation.coords, GlobalState.LSUPickupLocation.heading, 50.0, {
+		{
+			icon = "box-taped",
+			text = "Collect Order",
+			event = "Laptop:Client:LSUnderground:Collect",
+		},
+	}, 'box-taped', 'WORLD_HUMAN_SMOKING', true)
 end)
 
+LAPTOP.LSUnderground = {
+
+}
+
 RegisterNUICallback("GetLSUDetails", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:GetDetails", {}, function(data)
+	plsr.Callbacks:ServerCallback("Laptop:LSUnderground:GetDetails", {}, function(data)
         cb(data)
     end)
 end)
 
 RegisterNUICallback("LSUNDG:Market:Checkout", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Market:Checkout", data, function(data)
+	plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Market:Checkout", data, function(data)
         cb(data)
 
         if data?.success and data.coords then
-            exports["pulsar-blips"]:Add(
+            plsr.Blips:Add(
                 "lsu-pickup-location",
                 "LSUNDG Pickup Location",
                 data.coords,
@@ -50,20 +53,20 @@ RegisterNUICallback("LSUNDG:Market:Checkout", function(data, cb)
 end)
 
 RegisterNUICallback("Boosting:EnterQueue", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:EnterQueue", {}, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:EnterQueue", {}, cb)
 end)
 
 RegisterNUICallback("Boosting:ExitQueue", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:ExitQueue", {}, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:ExitQueue", {}, cb)
 end)
 
 RegisterNUICallback("Boosting:AcceptContract", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:AcceptContract", data, function(res)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:AcceptContract", data, function(res)
         if res?.success then
-            exports['pulsar-laptop']:AddData("disabledBoostingContracts", data.id)
+            plsr.Laptop.Data:Add("disabledBoostingContracts", data.id)
 
-            SetTimeout(120000, function()
-                exports['pulsar-laptop']:RemoveData("disabledBoostingContracts", data.id)
+            Citizen.SetTimeout(120000, function()
+                plsr.Laptop.Data:Remove("disabledBoostingContracts", data.id)
             end)
         end
 
@@ -72,21 +75,23 @@ RegisterNUICallback("Boosting:AcceptContract", function(data, cb)
 end)
 
 RegisterNUICallback("Boosting:TransferContract", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:TransferContract", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:TransferContract", data, cb)
 end)
 
 RegisterNUICallback("Boosting:DeclineContract", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:DeclineContract", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:DeclineContract", data, cb)
 end)
 
 AddEventHandler("Laptop:Client:LSUnderground:Collect", function()
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Market:Collect", {})
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Market:Collect", {})
 end)
 
 RegisterNUICallback("Boosting:Admin:CreateContract", function(data, cb)
+
     if data?.vehicle then
         local h = GetHashKey(data.vehicle)
         if not IsModelValid(h) or not IsModelAVehicle(h) then
+
             cb({
                 success = false,
                 message = 'Invalid Vehicle (Doesn\'t Exist)'
@@ -95,17 +100,17 @@ RegisterNUICallback("Boosting:Admin:CreateContract", function(data, cb)
         end
     end
 
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:Admin:CreateContract", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:Admin:CreateContract", data, cb)
 end)
 
 RegisterNUICallback("Boosting:Admin:GetBans", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:Admin:GetBans", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:Admin:GetBans", data, cb)
 end)
 
 RegisterNUICallback("Boosting:Admin:Ban", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:Admin:Ban", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:Admin:Ban", data, cb)
 end)
 
 RegisterNUICallback("Boosting:Admin:Unban", function(data, cb)
-    exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Boosting:Admin:Unban", data, cb)
+    plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Boosting:Admin:Unban", data, cb)
 end)

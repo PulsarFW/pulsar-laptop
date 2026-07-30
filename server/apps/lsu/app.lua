@@ -1,29 +1,33 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/server.lua"))()
+
 local _lsuReps = { Racing = true, Chopping = true, Boosting = true }
 local _chopRep = { Chopping = true }
 local _boostingReps = { Boosting = true }
 
 local _pendingMarketPickups = {}
 
+LAPTOP.LSUnderground = LAPTOP.LSUnderground or {}
+
 local _timeDelay = os.time() + (60 * math.random(30, 90))
 
 local marketItems = {
-	{ item = "racing_crappy",              coin = "VRM",  price = 3,        vpn = false, qty = 50 },
-	{ item = "racedongle",                 coin = "VRM",  rep = "Racing",   repLvl = 2,  price = 20,   vpn = false, qty = -1 },
-	{ item = "harness",                    coin = "VRM",  rep = "Racing",   repLvl = 1,  price = 20,   vpn = false, qty = -1 },
-	{ item = "purgecontroller",            coin = "VRM",  rep = "Racing",   repLvl = 3,  price = 50,   vpn = true,  qty = 5 },
+	{ item = "racing_crappy", coin = "VRM", price = 3, vpn = false, qty = 50 },
+	{ item = "racedongle", coin = "VRM", rep = "Racing", repLvl = 2, price = 20, vpn = false, qty = -1 },
+	{ item = "harness", coin = "VRM", rep = "Racing", repLvl = 1, price = 20, vpn = false, qty = -1 },
+	{ item = "purgecontroller", coin = "VRM", rep = "Racing", repLvl = 3, price = 50, vpn = true, qty = 5 },
 
-	{ item = "choplist",                   coin = "VRM",  rep = "Chopping", repLvl = 3,  price = 25,   vpn = true,  qty = 25 },
-	{ item = "choplist",                   coin = "MALD", rep = "Chopping", repLvl = 3,  price = 50,   qty = 100,   vpn = true },
+	{ item = "choplist", coin = "VRM", rep = "Chopping", repLvl = 3, price = 25, vpn = true, qty = 25 },
+	{ item = "choplist", coin = "MALD", rep = "Chopping", repLvl = 3, price = 50, qty = 100, vpn = true },
 
-	{ item = "boosting_tracking_disabler", coin = "VRM",  price = 50,       vpn = true,  qty = 20 },
+	{ item = "boosting_tracking_disabler", coin = "VRM", price = 50, vpn = true, qty = 20 },
 
-	{ item = "fakeplates",                 coin = "VRM",  rep = "Racing",   repLvl = 1,  price = 20,   vpn = true,  qty = -1 },
-	{ item = "fakeplates",                 coin = "MALD", price = 50,       qty = 5,     vpn = true },
+	{ item = "fakeplates", coin = "VRM", rep = "Racing", repLvl = 1, price = 20, vpn = true, qty = -1 },
+	{ item = "fakeplates", coin = "MALD", price = 50, qty = 5, vpn = true },
 
-	{ item = "nitrous",                    coin = "VRM",  price = 10,       vpn = true,  qty = -1 },
-	{ item = "nitrous",                    coin = "MALD", price = 40,       qty = 10,    vpn = true },
+	{ item = "nitrous", coin = "VRM", price = 10, vpn = true, qty = -1 },
+	{ item = "nitrous", coin = "MALD", price = 40, qty = 10, vpn = true },
 
-	{ item = "alias_changer",              coin = "VRM",  rep = "Racing",   repLvl = 5,  price = 2000, qty = 2,     vpn = true },
+	{ item = "alias_changer", coin = "VRM", rep = "Racing", repLvl = 5, price = 2000, qty = 2, vpn = true },
 }
 local _defMarket = table.copy(marketItems)
 
@@ -59,16 +63,16 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		while true do
 			Wait(wait * 1000)
 			marketItems = table.copy(_defMarket)
-			exports['pulsar-core']:LoggerInfo("Laptop - LSU", "Market Place Items Restocked")
+			plsr.Logger:Info("Laptop - LSU", "Market Place Items Restocked")
 		end
 	end)
 
 	GlobalState.LSUPickupLocation = locations[math.random(#locations)]
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:GetDetails", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:GetDetails", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char ~= nil then
-			local chopLevel = exports['pulsar-characters']:RepGetLevel(source, "Chopping")
+			local chopLevel = plsr.Reputation:GetLevel(source, "Chopping")
 			local chops = nil
 			if chopLevel >= 3 or hasValue(char:GetData("States") or {}, "ACCESS_CHOPPER") then
 				chops = {
@@ -91,15 +95,15 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 
 			local items = {}
 			if not data.phone then
-				local hasVpn = exports.ox_inventory:ItemsHas(char:GetData("SID"), 1, 'vpn', 1)
+				local hasVpn = hasValue(char:GetData("States"), "PHONE_VPN")
 				for k, it in ipairs(marketItems) do
 					local v = table.copy(it)
 					if
-						(v.rep == nil or exports['pulsar-characters']:RepGetLevel(source, v.rep) >= (v.repLvl or 1))
+						(v.rep == nil or plsr.Reputation:GetLevel(source, v.rep) >= (v.repLvl or 1))
 						and (not v.vpn or hasVpn)
 						and (
 							not v.requireCurrency
-							or v.requireCurrency and v.coin ~= nil and exports['pulsar-finance']:CryptoHas(source, v.coin, v.price)
+							or v.requireCurrency and v.coin ~= nil and plsr.Crypto:Has(source, v.coin, v.price)
 						)
 					then
 						if _timeDelay > os.time() then
@@ -107,21 +111,21 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 							v.delayed = true
 						end
 						v.id = k
-						v.itemData = exports.ox_inventory:ItemsGetData(v.item)
+						v.itemData = plsr.Inventory.Items:GetData(v.item)
 						table.insert(items, v)
 					end
 				end
 			end
 
 			local canBoost = false
-			local requiredRepLevel = exports['pulsar-characters']:RepGetLevel(source, _boostingRequiredRep.rep)
-			if requiredRepLevel and requiredRepLevel >= _boostingRequiredRep.level then
+			local requiredRepLevel = plsr.Reputation:GetLevel(source, config.lsu.boosting.requiredRep.rep)
+			if requiredRepLevel and requiredRepLevel >= config.lsu.boosting.requiredRep.level then
 				canBoost = true
 			end
 
 			cb({
 				chopList = chops,
-				reputations = exports['pulsar-characters']:RepViewList(source, not data.phone and _lsuReps or _chopRep),
+				reputations = plsr.Reputation:ViewList(source, not data.phone and _lsuReps or _chopRep),
 				items = items,
 				banned = char:GetData("LSUNDGBan"),
 				canBoost = canBoost,
@@ -131,8 +135,8 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Market:Checkout", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Market:Checkout", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char ~= nil and data and #data > 0 then
 			if os.time() > _timeDelay then
 				local requiredCoins = {}
@@ -152,7 +156,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 				local failed = false
 
 				for k, v in ipairs(requiredCoins) do
-					if not exports['pulsar-finance']:CryptoHas(source, k, v) then
+					if not plsr.Crypto:Has(source, k, v) then
 						failed = true
 					end
 				end
@@ -160,7 +164,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 				if not failed then
 					local quantityLimited = false
 					local otherLimited = false
-					local hasVpn = exports.ox_inventory:ItemsHas(char:GetData("SID"), 1, 'vpn', 1)
+					local hasVpn = hasValue(char:GetData("States"), "PHONE_VPN")
 
 					local boughtItems = {}
 					local boughtItemQuantity = 0
@@ -171,7 +175,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 						if
 							(
 								marketItem.rep == nil
-								or exports['pulsar-characters']:RepGetLevel(source, marketItem.rep) >= (marketItem.repLvl or 1)
+								or plsr.Reputation:GetLevel(source, marketItem.rep) >= (marketItem.repLvl or 1)
 							)
 							and (not marketItem.vpn or hasVpn)
 							and (
@@ -181,7 +185,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 						then
 							if v.qty == -1 or v.qty >= v.quantity then
 								if
-									exports['pulsar-finance']:CryptoExchangeRemove(
+									plsr.Crypto.Exchange:Remove(
 										marketItem.coin,
 										char:GetData("CryptoWallet"),
 										math.floor(marketItem.price * v.quantity)
@@ -214,7 +218,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 						extra = "Some of Your Items Weren't Delivered Due Processing Error"
 					end
 
-					exports['pulsar-laptop']:AddNotification(
+					plsr.Laptop.Notification:Add(
 						source,
 						"Your Order",
 						string.format(
@@ -250,8 +254,8 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:LSUnderground:Market:Collect", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
+	plsr.Callbacks:RegisterServerCallback("Laptop:LSUnderground:Market:Collect", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
 		if char ~= nil then
 			local pendingPickup = _pendingMarketPickups[char:GetData("SID")]
 			if pendingPickup then
@@ -259,12 +263,12 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					Wait(1)
 					for k, v in ipairs(list) do
 						Wait(1)
-						exports.ox_inventory:AddItem(source, v.item, v.quantity, {}, 1)
+						plsr.Inventory:AddItem(char:GetData("SID"), v.item, v.quantity, {}, 1)
 					end
 				end
 
 				_pendingMarketPickups[char:GetData("SID")] = nil
-				exports['pulsar-laptop']:AddNotification(
+				plsr.Laptop.Notification:Add(
 					source,
 					"Your Order",
 					"Thanks for collecting your order.",
@@ -275,8 +279,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 					{}
 				)
 			else
-				exports['pulsar-hud']:Notification(source, "error",
-					"fack off, not got nufink' for u m8")
+				plsr.Execute:Client(source, "Notification", "Error", "fack off, not got nufink' for u m8")
 			end
 
 			cb(true)
@@ -284,16 +287,14 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
 			cb(false)
 		end
 	end)
-end)
 
-function RegisterItemUses()
-	exports.ox_inventory:RegisterUse("lsundg_invite", "LSUNDG", function(source, item, itemData)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local pState = Player(source).state
+	plsr.Inventory.Items:RegisterUse("lsundg_invite", "LSUNDG", function(source, item, itemData)
+		local char = plsr.Fetch:CharacterSource(source)
+		local onDuty = plsr.State:Player(source).onDuty
 		if char ~= nil then
-			if not pState.onDuty or not _blacklistedJobs[pState.onDuty] then
+			if not onDuty or not _blacklistedJobs[onDuty] then
 				if not hasValue(char:GetData("States") or {}, "ACCESS_LSUNDERGROUND") then
-					if exports.ox_inventory:RemoveSlot(item.Owner, item.Name, 1, item.Slot, 1) then
+					if plsr.Inventory.Items:RemoveSlot(item.Owner, item.Name, 1, item.Slot, 1) then
 						local states = char:GetData("States") or {}
 						table.insert(states, "ACCESS_LSUNDERGROUND")
 						char:SetData("States", states)
@@ -305,7 +306,7 @@ function RegisterItemUses()
 						-- TODO
 						--char:SetData("Apps", Laptop.Store.Install:Do("lsunderground", char:GetData("Apps"), "force"))
 
-						exports['pulsar-phone']:EmailSend(
+						plsr.Phone.Email:Send(
 							source,
 							"shadow@ls.undg",
 							os.time(),
@@ -325,8 +326,8 @@ function RegisterItemUses()
 							)
 						)
 
-						SetTimeout(5000, function()
-							exports['pulsar-laptop']:AddNotification(
+						Citizen.SetTimeout(5000, function()
+							plsr.Laptop.Notification:Add(
 								source,
 								"Program Installed",
 								nil,
@@ -341,28 +342,13 @@ function RegisterItemUses()
 						end)
 					end
 				else
-					exports['pulsar-hud']:Notification(source, "error",
-						"Already A Member Of LS Underground")
+					plsr.Execute:Client(source, "Notification", "Error", "Already A Member Of LS Underground")
 				end
 			else
-				exports['pulsar-hud']:Notification(source, "error", "You Can't Use This Item")
+				plsr.Execute:Client(source, "Notification", "Error", "You Can't Use This Item")
 			end
 		end
 	end)
-end
-
-RegisterNetEvent('ox_inventory:ready', function()
-	if GetResourceState(GetCurrentResourceName()) == 'started' then
-		RegisterItemUses()
-	end
 end)
 
--- Also try to register on resource start in case ox_inventory is already ready
-AddEventHandler('onResourceStart', function(resourceName)
-	if resourceName == GetCurrentResourceName() then
-		Wait(2000) -- Wait for ox_inventory to be ready
-		if GetResourceState('ox_inventory') == 'started' then
-			RegisterItemUses()
-		end
-	end
-end)
+LAPTOP.LSU = {}

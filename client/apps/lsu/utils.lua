@@ -27,7 +27,7 @@ function CheckPDInZone(zone, radius)
     for k, v in ipairs(GetActivePlayers()) do
         local ped = GetPlayerPed(v)
         local src = GetPlayerServerId(v)
-        if #(GetEntityCoords(ped) - zone) <= radius and Player(src).state.onDuty == "police" then
+        if #(GetEntityCoords(ped) - zone) <= radius and plsr.State:GetPublicFlag(src, 'onDuty') == "police" then
             return true
         end
     end

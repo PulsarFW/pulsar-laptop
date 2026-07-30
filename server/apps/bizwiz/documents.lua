@@ -1,205 +1,189 @@
-exports('BizWizDocumentsSearch', function(jobId, term)
-	if not term then term = '' end
-	local p = promise.new()
+LAPTOP.BizWiz = LAPTOP.BizWiz or {}
 
-	local query =
-	'SELECT * FROM business_documents WHERE job = ? AND (title LIKE ? OR CONCAT(JSON_UNQUOTE(JSON_EXTRACT(author, "$.First")), " ", JSON_UNQUOTE(JSON_EXTRACT(author, "$.Last")), " ", JSON_UNQUOTE(JSON_EXTRACT(author, "$.SID"))) LIKE ?)'
-	local searchTerm = '%' .. term .. '%'
-
-	exports.oxmysql:execute(query, { jobId, searchTerm, searchTerm }, function(results)
-		if results then
-			for i, doc in ipairs(results) do
-				if doc.author then
-					doc.author = json.decode(doc.author)
-				end
-				if doc.history then
-					doc.history = json.decode(doc.history)
-				end
-				if doc.lastUpdated then
-					doc.lastUpdated = json.decode(doc.lastUpdated)
-				end
-				doc._id = doc.id
-			end
-			p:resolve(results)
-		else
-			p:resolve(false)
+local _documentsTableReady = false
+local function ensureDocumentsTable(callback)
+	if _documentsTableReady then
+		if callback then
+			callback()
 		end
-	end)
-	return Citizen.Await(p)
-end)
-
-exports('BizWizDocumentsView', function(jobId, id)
-	local p = promise.new()
-	exports.oxmysql:execute('SELECT * FROM business_documents WHERE job = ? AND id = ?', { jobId, id }, function(results)
-		if results and #results > 0 then
-			local doc = results[1]
-			if doc.author then
-				doc.author = json.decode(doc.author)
-			end
-			if doc.history then
-				doc.history = json.decode(doc.history)
-			end
-			if doc.lastUpdated then
-				doc.lastUpdated = json.decode(doc.lastUpdated)
-			end
-			doc._id = doc.id
-			p:resolve(doc)
-		else
-			p:resolve(false)
-		end
-	end)
-	return Citizen.Await(p)
-end)
-
-exports('BizWizDocumentsCreate', function(jobId, data)
-	local p = promise.new()
-
-	local authorJson = data.author and json.encode(data.author) or nil
-	local historyJson = data.history and json.encode(data.history) or nil
-	local lastUpdatedJson = data.lastUpdated and json.encode(data.lastUpdated) or nil
-
-	exports.oxmysql:execute(
-		'INSERT INTO business_documents (job, title, content, author, history, lastUpdated) VALUES (?, ?, ?, ?, ?, ?)',
-		{ jobId, data.title, data.content, authorJson, historyJson, lastUpdatedJson },
-		function(result)
-			if result and result.insertId then
-				p:resolve({
-					_id = result.insertId,
-				})
-			else
-				p:resolve(false)
+		return
+	end
+	plsr.Database:Query(
+		"CREATE TABLE IF NOT EXISTS `business_documents` (`id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, `job` VARCHAR(191) NOT NULL, `data` JSON NOT NULL, INDEX `idx_job` (`job`))",
+		nil,
+		function()
+			_documentsTableReady = true
+			if callback then
+				callback()
 			end
 		end
 	)
+end
 
-	return Citizen.Await(p)
-end)
+LAPTOP.BizWiz.Documents = {
+	Search = function(self, jobId, term)
+        if not term then term = '' end
+		local p = promise.new()
+		local like = "%" .. term .. "%"
 
-exports('BizWizDocumentsUpdate', function(jobId, id, char, report)
-	local p = promise.new()
+		ensureDocumentsTable(function()
+			plsr.Database:Query(
+				"SELECT `id`, `data` FROM `business_documents` WHERE `job` = ? AND (JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.title')) LIKE ? OR CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.author.First')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.author.Last')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.author.SID'))) LIKE ?)",
+				{ jobId, like, like },
+				function(success, results)
+					if not success then
+						p:resolve(false)
+						return
+					end
+					local documents = {}
+					for k, row in ipairs(results) do
+						local ok, decoded = pcall(json.decode, row.data)
+						if ok and type(decoded) == "table" then
+							decoded._id = row.id
+							table.insert(documents, decoded)
+						end
+					end
+					p:resolve(documents)
+				end
+			)
+		end)
+		return Citizen.Await(p)
+	end,
+	View = function(self, jobId, id)
+		local p = promise.new()
+		ensureDocumentsTable(function()
+			plsr.Database:Single("SELECT `id`, `data` FROM `business_documents` WHERE `job` = ? AND `id` = ?", { jobId, id }, function(success, row)
+				if not success or row == nil then
+					p:resolve(false)
+					return
+				end
+				local ok, decoded = pcall(json.decode, row.data)
+				if ok and type(decoded) == "table" then
+					decoded._id = row.id
+					p:resolve(decoded)
+				else
+					p:resolve(false)
+				end
+			end)
+		end)
+		return Citizen.Await(p)
+	end,
+	Create = function(self, jobId, data)
+		local p = promise.new()
+        data.job = jobId
+		ensureDocumentsTable(function()
+			plsr.Database:Insert("INSERT INTO `business_documents` (`job`, `data`) VALUES (?, ?)", { jobId, json.encode(data) }, function(success, newId)
+				if not success then
+					p:resolve(false)
+					return
+				end
+				p:resolve({ _id = newId })
+			end)
+		end)
 
-	exports.oxmysql:execute('SELECT history FROM business_documents WHERE id = ? AND job = ?', { id, jobId },
-		function(results)
-			if results and #results > 0 then
-				local currentHistory = results[1].history and json.decode(results[1].history) or {}
+		return Citizen.Await(p)
+	end,
+	Update = function(self, jobId, id, char, report)
+		local p = promise.new()
+		ensureDocumentsTable(function()
+			plsr.Database:Single("SELECT `data` FROM `business_documents` WHERE `id` = ? AND `job` = ?", { id, jobId }, function(success, row)
+				if not success or row == nil then
+					p:resolve(false)
+					return
+				end
 
-				table.insert(currentHistory, {
+				local ok, existing = pcall(json.decode, row.data)
+				if not ok or type(existing) ~= "table" then
+					existing = {}
+				end
+
+				for k, v in pairs(report) do
+					existing[k] = v
+				end
+
+				if not existing.history then
+					existing.history = {}
+				end
+				table.insert(existing.history, {
 					Time = (os.time() * 1000),
 					Char = char:GetData("SID"),
-					Log = string.format(
-						"%s Updated Report",
-						char:GetData("First") .. " " .. char:GetData("Last")
-					),
+					Log = string.format("%s Updated Report", char:GetData("First") .. " " .. char:GetData("Last")),
 				})
 
-				local authorJson = report.author and json.encode(report.author) or nil
-				local historyJson = json.encode(currentHistory)
-				local lastUpdatedJson = report.lastUpdated and json.encode(report.lastUpdated) or nil
-
-				local updateFields = {}
-				local params = {}
-
-				if report.title then
-					table.insert(updateFields, "title = ?")
-					table.insert(params, report.title)
-				end
-				if report.content then
-					table.insert(updateFields, "content = ?")
-					table.insert(params, report.content)
-				end
-				if authorJson then
-					table.insert(updateFields, "author = ?")
-					table.insert(params, authorJson)
-				end
-				if lastUpdatedJson then
-					table.insert(updateFields, "lastUpdated = ?")
-					table.insert(params, lastUpdatedJson)
-				end
-
-				table.insert(updateFields, "history = ?")
-				table.insert(params, historyJson)
-				table.insert(params, id)
-				table.insert(params, jobId)
-
-				local query = 'UPDATE business_documents SET ' ..
-					table.concat(updateFields, ', ') .. ' WHERE id = ? AND job = ?'
-
-				exports.oxmysql:execute(query, params, function(affectedRows)
-					p:resolve(affectedRows > 0)
+				plsr.Database:Update("UPDATE `business_documents` SET `data` = ? WHERE `id` = ?", { json.encode(existing), id }, function(updateSuccess)
+					p:resolve(updateSuccess)
 				end)
-			else
-				p:resolve(false)
-			end
+			end)
 		end)
-	return Citizen.Await(p)
-end)
-
-exports('BizWizDocumentsDelete', function(jobId, id)
-	local p = promise.new()
-
-	exports.oxmysql:execute('DELETE FROM business_documents WHERE id = ? AND job = ?', { id, jobId },
-		function(affectedRows)
-			p:resolve(affectedRows > 0)
+		return Citizen.Await(p)
+	end,
+    Delete = function(self, jobId, id)
+        local p = promise.new()
+		ensureDocumentsTable(function()
+			plsr.Database:Update("DELETE FROM `business_documents` WHERE `id` = ? AND `job` = ?", { id, jobId }, function(success)
+				p:resolve(success)
+			end)
 		end)
-	return Citizen.Await(p)
-end)
+		return Citizen.Await(p)
+    end,
+}
 
 AddEventHandler("Laptop:Server:RegisterCallbacks", function()
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:Document:Search", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, 'TABLET_VIEW_DOCUMENT')
+    plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:Document:Search", function(source, data, cb)
+        local job = CheckBusinessPermissions(source, 'TABLET_VIEW_DOCUMENT')
 		if job then
-			cb(exports['pulsar-laptop']:BizWizDocumentsSearch(job, data.term))
+			cb(plsr.Laptop.BizWiz.Documents:Search(job, data.term))
 		else
 			cb(false)
 		end
-	end)
+    end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:Document:Create", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local job = CheckBusinessPermissions(source, 'TABLET_CREATE_DOCUMENT')
+    plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:Document:Create", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
+        local job = CheckBusinessPermissions(source, 'TABLET_CREATE_DOCUMENT')
 		if job then
 			data.doc.author = {
 				SID = char:GetData("SID"),
 				First = char:GetData("First"),
 				Last = char:GetData("Last"),
 			}
-			cb(exports['pulsar-laptop']:BizWizDocumentsCreate(job, data.doc))
-		else
-			cb(false)
-		end
-	end)
+			cb(plsr.Laptop.BizWiz.Documents:Create(job, data.doc))
+        else
+            cb(false)
+        end
+    end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:Document:Update", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local job = CheckBusinessPermissions(source, 'TABLET_CREATE_DOCUMENT')
+    plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:Document:Update", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
+        local job = CheckBusinessPermissions(source, 'TABLET_CREATE_DOCUMENT')
 		if char and job then
-			data.Report.lastUpdated = {
-				Time = (os.time() * 1000),
-				SID = char:GetData("SID"),
-				First = char:GetData("First"),
-				Last = char:GetData("Last"),
-			}
-			cb(exports['pulsar-laptop']:BizWizDocumentsUpdate(job, data.id, char, data.Report))
-		else
-			cb(false)
-		end
-	end)
+            data.Report.lastUpdated = {
+                Time = (os.time() * 1000),
+                SID = char:GetData("SID"),
+                First = char:GetData("First"),
+                Last = char:GetData("Last"),
+            }
+			cb(plsr.Laptop.BizWiz.Documents:Update(job, data.id, char, data.Report))
+        else
+            cb(false)
+        end
+    end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:Document:Delete", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, 'TABLET_DELETE_DOCUMENT')
+    plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:Document:Delete", function(source, data, cb)
+        local job = CheckBusinessPermissions(source, 'TABLET_DELETE_DOCUMENT')
 		if job then
-			cb(exports['pulsar-laptop']:BizWizDocumentsDelete(job, data.id))
-		else
-			cb(false)
-		end
-	end)
+			cb(plsr.Laptop.BizWiz.Documents:Delete(job, data.id))
+        else
+            cb(false)
+        end
+    end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Laptop:BizWiz:Document:View", function(source, data, cb)
-		local job = CheckBusinessPermissions(source, 'TABLET_VIEW_DOCUMENT')
+    plsr.Callbacks:RegisterServerCallback("Laptop:BizWiz:Document:View", function(source, data, cb)
+        local job = CheckBusinessPermissions(source, 'TABLET_VIEW_DOCUMENT')
 		if job then
-			cb(exports['pulsar-laptop']:BizWizDocumentsView(job, data))
-		else
+			cb(plsr.Laptop.BizWiz.Documents:View(job, data))
+        else
 			cb(false)
 		end
-	end)
+    end)
 end)

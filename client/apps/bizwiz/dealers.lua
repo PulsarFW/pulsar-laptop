@@ -1,18 +1,18 @@
 RegisterNUICallback("PDMGetDealerData", function(data, cb)
-	exports["pulsar-core"]:ServerCallback("Dealerships:GetDealershipData", { dealerId = LocalPlayer.state.onDuty }, cb)
+	plsr.Callbacks:ServerCallback("Dealerships:GetDealershipData", { dealerId = plsr.State.flags.onDuty }, cb)
 end)
 
 RegisterNUICallback("PDMSaveDealerData", function(data, cb)
-	exports["pulsar-core"]:ServerCallback("Dealerships:UpdateDealershipData", {
-		dealerId = LocalPlayer.state.onDuty,
+	plsr.Callbacks:ServerCallback("Dealerships:UpdateDealershipData", {
+		dealerId = plsr.State.flags.onDuty,
 		updating = data.data,
 	}, cb)
 end)
 
 RegisterNUICallback("PDMGetStock", function(data, cb)
-	exports["pulsar-core"]:ServerCallback(
+	plsr.Callbacks:ServerCallback(
 		"Dealerships:Sales:FetchData",
-		LocalPlayer.state.onDuty,
+		plsr.State.flags.onDuty,
 		function(authed, stocks, defaultInterestRate, dealerData)
 			if authed then
 				cb({
@@ -28,8 +28,8 @@ RegisterNUICallback("PDMGetStock", function(data, cb)
 end)
 
 RegisterNUICallback("DealershipStartTestDrive", function(data, cb)
-	exports["pulsar-core"]:ServerCallback("Dealerships:Sales:TestDrive", {
-		dealership = LocalPlayer.state.onDuty,
+	plsr.Callbacks:ServerCallback("Dealerships:Sales:TestDrive", {
+		dealership = plsr.State.flags.onDuty,
 		data = {
 			vehicle = data.vehicle,
 			modelType = data.modelType,
@@ -43,16 +43,16 @@ RegisterNUICallback("DealershipStartTestDrive", function(data, cb)
 end)
 
 RegisterNUICallback("PDMRunCredit", function(data, cb)
-	exports["pulsar-core"]:ServerCallback(
+	plsr.Callbacks:ServerCallback(
 		"Dealerships:CheckPersonsCredit",
-		{ dealerId = LocalPlayer.state.onDuty, SID = data.term },
+		{ dealerId = plsr.State.flags.onDuty, SID = data.term },
 		cb
 	)
 end)
 
 RegisterNUICallback("PDMStartSale", function(data, cb)
-	exports["pulsar-core"]:ServerCallback("Dealerships:Sales:StartSale", {
-		dealership = LocalPlayer.state.onDuty,
+	plsr.Callbacks:ServerCallback("Dealerships:Sales:StartSale", {
+		dealership = plsr.State.flags.onDuty,
 		type = data.type,
 		data = {
 			vehicle = data.vehicle,
@@ -69,8 +69,8 @@ RegisterNUICallback("PDMStartSale", function(data, cb)
 end)
 
 RegisterNUICallback("PDMGetHistory", function(data, cb)
-	exports["pulsar-core"]:ServerCallback("Dealerships:FetchHistory", {
-		dealership = LocalPlayer.state.onDuty,
+	plsr.Callbacks:ServerCallback("Dealerships:FetchHistory", {
+		dealership = plsr.State.flags.onDuty,
 		term = data.value,
 		category = data.category,
 		page = data.page,
@@ -84,9 +84,9 @@ RegisterNUICallback("PDMGetHistory", function(data, cb)
 end)
 
 RegisterNUICallback("PDMGetOwner", function(data, cb)
-	exports["pulsar-core"]:ServerCallback(
+	plsr.Callbacks:ServerCallback(
 		"Dealerships:FetchCurrentOwner",
-		{ dealerId = LocalPlayer.state.onDuty, VIN = data.VIN },
+		{ dealerId = plsr.State.flags.onDuty, VIN = data.VIN },
 		function(penis)
 			if penis then
 				cb(penis)

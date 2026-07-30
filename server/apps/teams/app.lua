@@ -1,392 +1,382 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/server.lua"))()
+
 _teams = {}
 
 _teamRequests = {}
 _teamRequestIds = 0
 
-exports('TeamsGetAll', function()
-    return _teams
-end)
-
-exports('TeamsGet', function(id)
-    for k, v in ipairs(_teams) do
-        if v.ID == id then
-            return v
-        end
-    end
-end)
-
-exports('TeamsGetByMember', function(SID)
-    for k, v in ipairs(_teams) do
-        for _, member in ipairs(v.Members) do
-            if member.SID == SID then
-                return v, member.Leader
-            end
-        end
-    end
-
-    return false
-end)
-
-exports('TeamsGetByMemberSource', function(source)
-    for k, v in ipairs(_teams) do
-        for _, member in ipairs(v.Members) do
-            if member.Source == source then
-                return v, member.Leader
-            end
-        end
-    end
-
-    return false
-end)
-
-exports('TeamsCreate', function(source, name)
-    local char = exports['pulsar-characters']:FetchCharacterSource(source)
-    if char and not exports['pulsar-laptop']:TeamsGetByMemberSource(source) then
-        name = string.gsub(name, '%s+', '')
-
+LAPTOP.Teams = {
+    GetAll = function(self)
+        return _teams
+    end,
+    Get = function(self, id)
         for k, v in ipairs(_teams) do
-            if v.Name == name then
-                return {
-                    message = "Name Already Taken"
-                }
+            if v.ID == id then
+                return v
             end
         end
-
-        local team = {
-            State = 0,
-            StateName = "Available",
-            Name = name,
-            ID = source,
-            Members = {
-                {
-                    Leader = true,
-                    Source = source,
-                    SID = char:GetData("SID"),
-                    First = char:GetData("First"),
-                    Last = char:GetData("Last"),
-                }
-            }
-        }
-
-        table.insert(_teams, team)
-
-        char:SetData("Team", source)
-        TriggerClientEvent("Laptop:Client:Teams:Set", source, team)
-
-        return {
-            success = true,
-            team = team,
-        }
-    end
-    return false
-end)
-
-exports('TeamsDelete', function(id, leaderDropped)
-    for k, v in ipairs(_teams) do
-        if v.ID == id then
+    end,
+    GetByMember = function(self, SID)
+        for k, v in ipairs(_teams) do
             for _, member in ipairs(v.Members) do
-                exports['pulsar-laptop']:AddNotification(
-                    member.Source,
-                    "Team Deleted",
-                    "You are no longer a member of a team as the one you were in was just deleted.",
-                    os.time() * 1000,
-                    15000,
-                    "teams",
-                    {},
-                    {}
-                )
-
-                local char = exports['pulsar-characters']:FetchCharacterSource(member.Source)
-                if char then
-                    char:SetData("Team", nil)
+                if member.SID == SID then
+                    return v, member.Leader
                 end
-
-                TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, nil)
             end
-
-            TriggerEvent("Laptop:Server:Teams:Deleted", id)
-            table.remove(_teams, k)
-            return true
         end
-    end
 
-    return false
-end)
-
-exports('TeamsSetState', function(team, state, stateName)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            v.State = state
-            v.StateName = stateName
-
-            for _, member in ipairs(v.Members) do
-                TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
-            end
-
-            return true
-        end
-    end
-    return false
-end)
-
-exports('TeamsResetState', function(team)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            v.State = 0
-            v.StateName = "Available"
-
-            for _, member in ipairs(v.Members) do
-                TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
-            end
-
-            return true
-        end
-    end
-    return false
-end)
-
-exports('TeamsMembersAdd', function(source, team)
-    local char = exports['pulsar-characters']:FetchCharacterSource(source)
-
-    if char then
+        return false
+    end,
+    GetByMemberSource = function(self, source)
         for k, v in ipairs(_teams) do
-            if v.ID == team then
-                if #v.Members < 5 then
-                    local data = {
-                        Leader = false,
+            for _, member in ipairs(v.Members) do
+                if member.Source == source then
+                    return v, member.Leader
+                end
+            end
+        end
+
+        return false
+    end,
+    Create = function(self, source, name)
+        local char = plsr.Fetch:CharacterSource(source)
+        if char and not plsr.Laptop.Teams:GetByMemberSource(source) then
+
+            name = string.gsub(name, '%s+', '')
+
+            for k, v in ipairs(_teams) do
+                if v.Name == name then
+                    return {
+                        message = "Name Already Taken"
+                    }
+                end
+            end
+
+            local team = {
+                State = 0,
+                StateName = "Available",
+                Name = name,
+                ID = source,
+                Members = {
+                    {
+                        Leader = true,
                         Source = source,
                         SID = char:GetData("SID"),
                         First = char:GetData("First"),
                         Last = char:GetData("Last"),
                     }
+                }
+            }
 
-                    table.insert(v.Members, data)
-                    char:SetData("Team", team)
+            table.insert(_teams, team)
 
-                    for _, member in ipairs(v.Members) do
-                        TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
+            char:SetData("Team", source)
+            TriggerClientEvent("Laptop:Client:Teams:Set", source, team)
+
+            return {
+                success = true,
+                team = team,
+            }
+        end
+        return false
+    end,
+    Delete = function(self, id, leaderDropped)
+        for k, v in ipairs(_teams) do
+            if v.ID == id then
+                for _, member in ipairs(v.Members) do
+                    plsr.Laptop.Notification:Add(
+                        member.Source, 
+                        "Team Deleted", 
+                        "You are no longer a member of a team as the one you were in was just deleted.", 
+                        os.time() * 1000, 
+                        15000, 
+                        "teams", 
+                        {}, 
+                        {}
+                    )
+
+                    local char = plsr.Fetch:CharacterSource(member.Source)
+                    if char then
+                        char:SetData("Team", nil)
                     end
 
-                    TriggerEvent("Laptop:Server:Teams:MemberAdded", v.ID, data)
-                    return true
+                    TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, nil)
                 end
 
-                break
+                TriggerEvent("Laptop:Server:Teams:Deleted", id)
+                table.remove(_teams, k)
+                return true
             end
         end
-    end
 
-    return false
-end)
-
-exports('TeamsMembersRemove', function(source, teamId, wasRemoved)
-    if not teamId then
-        local team = exports['pulsar-laptop']:TeamsGetByMemberSource(source)
-
-        teamId = team?.ID
-    end
-
-    if teamId then
-        local removed = false
-        local leader = false
-        local info = nil
-
+        return false
+    end,
+    SetState = function(self, team, state, stateName)
         for k, v in ipairs(_teams) do
-            if v.ID == teamId then
-                for i, j in ipairs(v.Members) do
-                    if j.Source == source then
-                        info = j
-                        leader = j.Leader
-                        table.remove(v.Members, i)
-                        break
-                    end
-                end
+            if v.ID == team then
+                v.State = state
+                v.StateName = stateName
 
                 for _, member in ipairs(v.Members) do
                     TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
-
-                    exports['pulsar-laptop']:AddNotification(
-                        member.Source,
-                        wasRemoved and "Team Member Removed" or "Team Member Left",
-                        string.format("%s %s is no longer in your team.", info.First, info.Last),
-                        os.time() * 1000,
-                        10000,
-                        "teams",
-                        {},
-                        {}
-                    )
                 end
 
-                if leader then
-                    exports['pulsar-laptop']:TeamsDelete(teamId, true)
-                else
-                    TriggerEvent("Laptop:Server:Teams:MemberRemoved", v.ID, info)
-                end
-
-                local char = exports['pulsar-characters']:FetchCharacterSource(source)
-                if char then
-                    char:SetData("Team", false)
-                end
-
-                TriggerClientEvent("Laptop:Client:Teams:Set", source, nil)
-
-                break
+                return true
             end
         end
-    end
-end)
-
-exports('TeamsMembersSendEvent', function(team, event, ...)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            for _, member in ipairs(v.Members) do
-                TriggerClientEvent(event, member.Source, ...)
-            end
-
-            break
-        end
-    end
-end)
-
-exports('TeamsMembersNotification', function(team, title, description, time, duration, app, actions, notifData)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            for _, member in ipairs(v.Members) do
-                exports['pulsar-laptop']:AddNotification(member.Source, title, description, time, duration, app, actions,
-                    notifData)
-            end
-
-            break
-        end
-    end
-end)
-
-exports('TeamsMembersNotificationAddWithId',
-    function(team, id, title, description, time, duration, app, actions, notifData)
+        return false
+    end,
+    ResetState = function(self, team)
         for k, v in ipairs(_teams) do
             if v.ID == team then
+                v.State = 0
+                v.StateName = "Available"
+
                 for _, member in ipairs(v.Members) do
-                    exports['pulsar-laptop']:AddNotificationWithId(member.Source, id, title, description, time, duration,
-                        apctions,
-                        notifData)
+                    TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
                 end
 
-                break
+                return true
             end
         end
-    end)
+        return false
+    end,
+    Members = {
+        Add = function(self, source, team)
+            local char = plsr.Fetch:CharacterSource(source)
 
-exports('TeamsMembersNotificationUpdate', function(team, id, title, description, skipSound)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            for _, member in ipairs(v.Members) do
-                exports['pulsar-laptop']:UpdateNotification(member.Source, id, title, description, skipSound)
+            if char then
+                for k, v in ipairs(_teams) do
+                    if v.ID == team then
+                        if #v.Members < config.teams.maxMembers then
+                            local data = {
+                                Leader = false,
+                                Source = source,
+                                SID = char:GetData("SID"),
+                                First = char:GetData("First"),
+                                Last = char:GetData("Last"),
+                            }
+    
+                            table.insert(v.Members, data)
+                            char:SetData("Team", team)
+    
+                            for _, member in ipairs(v.Members) do
+                                TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
+                            end
+    
+                            TriggerEvent("Laptop:Server:Teams:MemberAdded", v.ID, data)
+                            return true
+                        end
+
+                        break
+                    end
+                end
             end
 
-            break
-        end
-    end
-end)
+            return false
+        end,
+        Remove = function(self, source, teamId, wasRemoved)
+            if not teamId then
+                local team = plsr.Laptop.Teams:GetByMemberSource(source)
 
-exports('TeamsMembersNotificationRemoveById', function(team, id)
-    for k, v in ipairs(_teams) do
-        if v.ID == team then
-            for _, member in ipairs(v.Members) do
-                exports['pulsar-laptop']:RemoveNotificationById(member.Source, id)
+                teamId = team?.ID
             end
 
-            break
-        end
-    end
-end)
+            if teamId then
+                local removed = false
+                local leader = false
+                local info = nil
 
-exports('TeamsRequestsAdd', function(target, isTeam, event, label, description, data, time)
-    if not time then
-        time = 60 * 5
-    end
+                for k, v in ipairs(_teams) do
+                    if v.ID == teamId then
+                        for i, j in ipairs(v.Members) do
+                            if j.Source == source then
+                                info = j
+                                leader = j.Leader
+                                table.remove(v.Members, i)
+                                break
+                            end
+                        end
 
-    local id = _teamRequestIds + 1
+                        for _, member in ipairs(v.Members) do
+                            TriggerClientEvent("Laptop:Client:Teams:Set", member.Source, v)
 
-    table.insert(_teamRequests, {
-        id = id,
-        time = os.time(),
-        expires = os.time() + time,
-        owner = target,
-        team = isTeam,
-        event = event,
-        label = label,
-        description = description,
-        data = data or {}
-    })
+                            plsr.Laptop.Notification:Add(
+                                member.Source, 
+                                wasRemoved and "Team Member Removed" or "Team Member Left", 
+                                string.format("%s %s is no longer in your team.", info.First, info.Last), 
+                                os.time() * 1000, 
+                                10000, 
+                                "teams", 
+                                {}, 
+                                {}
+                            )
+                        end
 
-    return id
-end)
+                        if leader then
+                            plsr.Laptop.Teams:Delete(teamId, true)
+                        else
+                            TriggerEvent("Laptop:Server:Teams:MemberRemoved", v.ID, info)
+                        end
+        
+                        local char = plsr.Fetch:CharacterSource(source)
+                        if char then
+                            char:SetData("Team", false)
+                        end
+            
+                        TriggerClientEvent("Laptop:Client:Teams:Set", source, nil)
 
-exports('TeamsRequestsClear', function(id)
-    for k, v in ipairs(_teamRequests) do
-        if v.id == id then
-            table.remove(_teamRequests, k)
-        end
-    end
-end)
+                        break
+                    end
+                end
+            end
+        end,
+        SendEvent = function(self, team, event, ...)
+            for k, v in ipairs(_teams) do
+                if v.ID == team then
+                    for _, member in ipairs(v.Members) do
+                        TriggerClientEvent(event, member.Source, ...)
+                    end
 
-exports('TeamsRequestsGet', function(source)
-    local char = exports['pulsar-characters']:FetchCharacterSource(source)
-    local r = {}
+                    break
+                end
+            end
+        end,
+        Notification = function(self, team, title, description, time, duration, app, actions, notifData)
+            for k, v in ipairs(_teams) do
+                if v.ID == team then
+                    for _, member in ipairs(v.Members) do
+                        plsr.Laptop.Notification:Add(member.Source, title, description, time, duration, app, actions, notifData)
+                    end
 
-    if char then
-        local team, leader = exports['pulsar-laptop']:TeamsGetByMember(char:GetData("SID"))
-        if team then
+                    break
+                end
+            end
+        end,
+        NotificationAddWithId = function(self, team, id, title, description, time, duration, app, actions, notifData)
+            for k, v in ipairs(_teams) do
+                if v.ID == team then
+                    for _, member in ipairs(v.Members) do
+                        plsr.Laptop.Notification:AddWithId(member.Source, id, title, description, time, duration, app, actions, notifData)
+                    end
+
+                    break
+                end
+            end
+        end,
+        NotificationUpdate = function(self, team, id, title, description, skipSound)
+            for k, v in ipairs(_teams) do
+                if v.ID == team then
+                    for _, member in ipairs(v.Members) do
+                        plsr.Laptop.Notification:Update(member.Source, id, title, description, skipSound)
+                    end
+
+                    break
+                end
+            end
+        end,
+        NotificationRemoveById = function(self, team, id)
+            for k, v in ipairs(_teams) do
+                if v.ID == team then
+                    for _, member in ipairs(v.Members) do
+                        plsr.Laptop.Notification:RemoveById(member.Source, id)
+                    end
+
+                    break
+                end
+            end
+        end,
+    },
+    Requests = {
+        Add = function(self, target, isTeam, event, label, description, data, time)
+            if not time then
+                time = 60 * 5
+            end
+
+            local id = _teamRequestIds + 1
+
+            table.insert(_teamRequests, {
+                id = id,
+                time = os.time(),
+                expires = os.time() + time,
+                owner = target,
+                team = isTeam,
+                event = event,
+                label = label,
+                description = description,
+                data = data or {}
+            })
+
+            return id
+        end,
+
+        Clear = function(self, id)
             for k, v in ipairs(_teamRequests) do
-                if v.team and v.owner == team.ID then
-                    table.insert(r, v)
+                if v.id == id then
+                    table.remove(_teamRequests, k)
                 end
             end
-        else
-            for k, v in ipairs(_teamRequests) do
-                if not v.team and v.owner == char:GetData("SID") then
-                    table.insert(r, v)
-                end
-            end
-        end
-    end
+        end,
 
-    return r
-end)
+        Get = function(self, source)
+            local char = plsr.Fetch:CharacterSource(source)
+            local r = {}
+    
+            if char then
+                local team, leader = plsr.Laptop.Teams:GetByMember(char:GetData("SID"))
+                if team then
+                    for k, v in ipairs(_teamRequests) do
+                        if v.team and v.owner == team.ID then
+                            table.insert(r, v)
+                        end
+                    end
+                else
+                    for k, v in ipairs(_teamRequests) do
+                        if not v.team and v.owner == char:GetData("SID") then
+                            table.insert(r, v)
+                        end
+                    end
+                end
+            end
+    
+            return r
+        end,
+    }
+}
 
 AddEventHandler("Laptop:Server:RegisterCallbacks", function()
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:Get", function(source, data, cb)
-        cb(exports['pulsar-laptop']:TeamsGetAll())
-    end)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:Get", function(source, data, cb)
+        cb(plsr.Laptop.Teams:GetAll())
+	end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:GetRequests", function(source, data, cb)
-        cb(exports['pulsar-laptop']:TeamsRequestsGet(source))
-    end)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:GetRequests", function(source, data, cb)
+        cb(plsr.Laptop.Teams.Requests:Get(source))
+	end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:Create", function(source, data, cb)
-        cb(exports['pulsar-laptop']:TeamsCreate(source, data.Name))
-    end)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:Create", function(source, data, cb)
+        cb(plsr.Laptop.Teams:Create(source, data.Name))
+	end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:Delete", function(source, data, cb)
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:Delete", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
         if char then
-            local team, leader = exports['pulsar-laptop']:TeamsGetByMemberSource(source)
-
+            local team, leader = plsr.Laptop.Teams:GetByMemberSource(source)
+            
             if team and leader and team.State == 0 then
-                cb(exports['pulsar-laptop']:TeamsDelete(team.ID))
+                cb(plsr.Laptop.Teams:Delete(team.ID))
             else
                 cb(false)
             end
         else
             cb(false)
         end
-    end)
+	end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:Members:Invite", function(source, data, cb)
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
-        local target = exports['pulsar-characters']:FetchBySID(data?.SID)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:Members:Invite", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
+        local target = plsr.Fetch:SID(data?.SID)
         if char and target then
-            local myTeam = exports['pulsar-laptop']:TeamsGetByMember(char:GetData("SID"))
+            local myTeam = plsr.Laptop.Teams:GetByMember(char:GetData("SID"))
 
             if target:GetData("Team") or not myTeam or myTeam?.State ~= 0 then
                 cb(false)
@@ -400,7 +390,7 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
                 end
             end
 
-            local req = exports['pulsar-laptop']:TeamsRequestsAdd(
+            local req = plsr.Laptop.Teams.Requests:Add(
                 target:GetData("SID"),
                 false,
                 "Laptop:Server:Teams:Invite",
@@ -413,13 +403,12 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
                 60 * 2 -- 2 Minutes
             )
 
-            exports['pulsar-laptop']:AddNotification(target:GetData("Source"), "New Invitation",
-                string.format("You have been invited to team: %s", myTeam.Name), os.time() * 1000, 10000, "teams", {
-                    accept = "Laptop:Client:Teams:RequestNotifAccept",
-                    cancel = "Laptop:Client:Teams:RequestNotifDeny",
-                }, {
-                    request = req,
-                })
+            plsr.Laptop.Notification:Add(target:GetData("Source"), "New Invitation", string.format("You have been invited to team: %s", myTeam.Name), os.time() * 1000, 10000, "teams", {
+                accept = "Laptop:Client:Teams:RequestNotifAccept",
+                cancel = "Laptop:Client:Teams:RequestNotifDeny",
+            }, {
+                request = req,
+            })
 
             cb({ success = true })
         else
@@ -427,19 +416,19 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
         end
     end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:Members:Remove", function(source, data, cb)
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:Members:Remove", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
         if char and data?.SID and data?.Source then
             if data.SID == char:GetData("SID") then -- Leaving Group
-                local team = exports['pulsar-laptop']:TeamsGetByMemberSource(char:GetData("Source"))
-                exports['pulsar-laptop']:TeamsMembersRemove(char:GetData("Source"), team.ID)
-
+                local team = plsr.Laptop.Teams:GetByMemberSource(char:GetData("Source"))
+                plsr.Laptop.Teams.Members:Remove(char:GetData("Source"), team.ID)
+                
                 cb(true)
             else -- Kicking From Group
-                local team = exports['pulsar-laptop']:TeamsGetByMember(data.SID)
+                local team = plsr.Laptop.Teams:GetByMember(data.SID)
 
                 if team and team.State == 0 and team.ID == char:GetData("Source") then -- Is Leader
-                    exports['pulsar-laptop']:TeamsMembersRemove(data.Source, team.ID, true)
+                    plsr.Laptop.Teams.Members:Remove(data.Source, team.ID, true)
 
                     cb(true)
                 else
@@ -451,16 +440,16 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
         end
     end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:ActionRequest", function(source, data, cb)
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:ActionRequest", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
         if char and data.id then
-            local team, leader = exports['pulsar-laptop']:TeamsGetByMember(char:GetData("SID"))
+            local team, leader = plsr.Laptop.Teams:GetByMember(char:GetData("SID"))
 
             for k, v in ipairs(_teamRequests) do
                 if v.id == data.id and ((not v.team and v.owner == char:GetData("SID")) or (v.team and team and v.owner == team.ID and leader)) then
                     TriggerEvent(v.event, source, v.data, data.action, data.id)
 
-                    exports['pulsar-laptop']:TeamsRequestsClear(data.id)
+                    plsr.Laptop.Teams.Requests:Clear(data.id)
                     break
                 end
             end
@@ -469,10 +458,10 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
         cb()
     end)
 
-    exports["pulsar-core"]:RegisterServerCallback("Laptop:Teams:RequestInvite", function(source, data, cb)
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
+    plsr.Callbacks:RegisterServerCallback("Laptop:Teams:RequestInvite", function(source, data, cb)
+        local char = plsr.Fetch:CharacterSource(source)
         if char and data and not char:GetData("Team") then
-            local team = exports['pulsar-laptop']:TeamsGet(data)
+            local team = plsr.Laptop.Teams:Get(data)
 
             if team and team.State == 0 then
                 for k, v in ipairs(_teamRequests) do
@@ -482,13 +471,12 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
                     end
                 end
 
-                local req = exports['pulsar-laptop']:TeamsRequestsAdd(
+                local req = plsr.Laptop.Teams.Requests:Add(
                     team.ID,
                     true,
                     "Laptop:Server:Teams:InviteRequest",
                     "New Join Request",
-                    string.format("Request to join your team from %s %s (%s).", char:GetData("First"),
-                        char:GetData("Last"), char:GetData("SID")),
+                    string.format("Request to join your team from %s %s (%s).", char:GetData("First"), char:GetData("Last"), char:GetData("SID")),
                     {
                         request = true,
                         team = team.ID,
@@ -496,15 +484,13 @@ AddEventHandler("Laptop:Server:RegisterCallbacks", function()
                     },
                     60 * 2 -- 2 Minutes
                 )
-
-                exports['pulsar-laptop']:AddNotification(team.ID, "New Join Request",
-                    string.format("%s %s (%s) requested to join your team.", char:GetData("First"), char:GetData("Last"),
-                        char:GetData("SID")), os.time() * 1000, 10000, "teams", {
-                        accept = "Laptop:Client:Teams:RequestNotifAccept",
-                        cancel = "Laptop:Client:Teams:RequestNotifDeny",
-                    }, {
-                        request = req,
-                    })
+    
+                plsr.Laptop.Notification:Add(team.ID, "New Join Request", string.format("%s %s (%s) requested to join your team.", char:GetData("First"), char:GetData("Last"), char:GetData("SID")), os.time() * 1000, 10000, "teams", {
+                    accept = "Laptop:Client:Teams:RequestNotifAccept",
+                    cancel = "Laptop:Client:Teams:RequestNotifDeny",
+                }, {
+                    request = req,
+                })
 
                 cb(true)
             else
@@ -537,21 +523,21 @@ function StartTeamsThread()
 end
 
 AddEventHandler("Characters:Server:PlayerLoggedOut", function(source, cData)
-    exports['pulsar-laptop']:TeamsMembersRemove(source)
+    plsr.Laptop.Teams.Members:Remove(source)
 end)
 
 AddEventHandler("Characters:Server:PlayerDropped", function(source, cData)
-    exports['pulsar-laptop']:TeamsMembersRemove(source)
+    plsr.Laptop.Teams.Members:Remove(source)
 end)
 
 AddEventHandler("Laptop:Server:Teams:Invite", function(source, data, action)
     if action == "accept" then
-        exports['pulsar-laptop']:TeamsMembersAdd(source, data.team)
+        plsr.Laptop.Teams.Members:Add(source, data.team)
     end
 end)
 
 AddEventHandler("Laptop:Server:Teams:InviteRequest", function(source, data, action)
     if action == "accept" then
-        exports['pulsar-laptop']:TeamsMembersAdd(data.joiner, data.team)
+        plsr.Laptop.Teams.Members:Add(data.joiner, data.team)
     end
 end)

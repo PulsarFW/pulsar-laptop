@@ -1,208 +1,14 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))().lsu.chopping
+
 local _blips = {}
 
 local _doingActions = false
 local _validVeh = nil
 local _validBone = nil
 local _delay = false
-local _vehBones = {
-	{ name = "wheel_lf",     distance = 1.6, index = 0, type = "tire", duration = 3000 },
-	{ name = "wheel_rf",     distance = 1.6, index = 1, type = "tire", duration = 3000 },
-	{ name = "wheel_lm",     distance = 1.6, index = 2, type = "tire", duration = 3000 },
-	{ name = "wheel_rm",     distance = 1.6, index = 3, type = "tire", duration = 3000 },
-	{ name = "wheel_lr",     distance = 1.6, index = 4, type = "tire", duration = 3000 },
-	{ name = "wheel_rr",     distance = 1.6, index = 5, type = "tire", duration = 3000 },
-	{ name = "wheel_lm1",    distance = 1.6, index = 2, type = "tire", duration = 3000 },
-	{ name = "wheel_rm1",    distance = 1.6, index = 3, type = "tire", duration = 3000 },
-	{ name = "door_dside_f", distance = 1.8, index = 0, type = "door", duration = 6000 },
-	{ name = "door_pside_f", distance = 1.8, index = 1, type = "door", duration = 6000 },
-	{ name = "door_dside_r", distance = 1.8, index = 2, type = "door", duration = 6000 },
-	{ name = "door_pside_r", distance = 1.8, index = 3, type = "door", duration = 6000 },
-	{ name = "bonnet",       distance = 2.8, index = 4, type = "door", duration = 9000 },
-	{ name = "boot",         distance = 1.6, index = 5, type = "door", duration = 9000 },
-}
-
-exports('ChoppingCreateBlips', function()
-	if exports['pulsar-characters']:RepHasLevel("Salvaging", 7) or hasValue(LocalPlayer.state.Character:GetData("States") or {}, "ACCESS_LSUNDERGROUND") then
-		_blips.public = exports["pulsar-blips"]:Add(
-			"chopping_public",
-			"LSUNDG Public Dropoff",
-			GlobalState["PublicDropoff"].coords,
-			524,
-			35,
-			0.4
-		)
-	else
-		exports["pulsar-blips"]:Remove("chopping_public")
-	end
-
-	if exports['pulsar-characters']:RepHasLevel("Salvaging", 7) and (exports['pulsar-characters']:RepHasLevel("Chopping", 5) or hasValue(LocalPlayer.state.Character:GetData("States") or {}, "ACCESS_LSUNDERGROUND")) then
-		_blips.vip = exports["pulsar-blips"]:Add(
-			"chopping_private",
-			"LSUNDG Private Dropoff",
-			GlobalState["PrivateDropoff"].coords,
-			524,
-			36,
-			0.4
-		)
-	else
-		exports["pulsar-blips"]:Remove("chopping_private")
-	end
-
-	if hasValue(LocalPlayer.state.Character:GetData("States") or {}, "ACCESS_LSUNDERGROUND") then
-		_blips.private = exports["pulsar-blips"]:Add(
-			"chopping_personal",
-			"LSUNDG Personal Dropoff",
-			GlobalState["PersonalDropoff"].coords,
-			524,
-			43,
-			0.4
-		)
-	else
-		exports["pulsar-blips"]:Remove("chopping_personal")
-	end
-end)
-
-exports('AttemptChop', function()
-	if _validBone ~= nil and _validVeh ~= nil then
-		if _validBone?.type == "door" then
-			if not IsVehicleDoorDamaged(_validVeh, _validBone?.index) then
-				_delay = true
-				PedFaceCoord(LocalPlayer.state.ped, _validBone?.coords)
-				exports["pulsar-core"]:SetVehicleDoorOpen(_validVeh, _validBone?.index, false, true)
-				exports['pulsar-hud']:ProgressWithTickEvent({
-					name = "chopping_action",
-					duration = _validBone?.duration,
-					label = "Removing Part",
-					useWhileDead = true,
-					canCancel = true,
-					ignoreModifier = true,
-					tickrate = 100,
-					controlDisables = {
-						disableMovement = true,
-						disableCarMovement = true,
-						disableMouse = false,
-						disableCombat = true,
-					},
-					animation = {
-						task = "WORLD_HUMAN_WELDING",
-					},
-				}, function()
-					if _validVeh == nil or _validBone == nil then
-						exports['pulsar-hud']:ProgressCancel()
-					end
-				end, function(status)
-					if not status then
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:ChopPart", {
-							vNet = VehToNet(_validVeh),
-							index = _validBone?.index,
-						}, function(c) end)
-					else
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
-						exports["pulsar-core"]:SetVehicleDoorShut(_validVeh, _validBone?.index, true)
-					end
-
-					SetTimeout(1500, function()
-						_delay = false
-					end)
-				end)
-			end
-		elseif _validBone?.type == "tire" then
-			if not IsVehicleTyreBurst(_validVeh, _validBone?.index) then
-				_delay = true
-				PedFaceCoord(LocalPlayer.state.ped, _validBone?.coords)
-				exports['pulsar-hud']:ProgressWithTickEvent({
-					name = "chopping_action",
-					duration = _validBone?.duration,
-					label = "Removing Part",
-					useWhileDead = true,
-					canCancel = true,
-					ignoreModifier = true,
-					tickrate = 100,
-					controlDisables = {
-						disableMovement = true,
-						disableCarMovement = true,
-						disableMouse = false,
-						disableCombat = true,
-					},
-					animation = {
-						animDict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
-						anim = "machinic_loop_mechandplayer",
-						flags = 1,
-					},
-				}, function()
-					if _validVeh == nil or _validBone == nil then
-						exports['pulsar-hud']:ProgressCancel()
-					end
-				end, function(status)
-					if not status then
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:ChopTire", {
-							vNet = VehToNet(_validVeh),
-							index = _validBone?.index,
-						}, function(r)
-							if r then
-								SetTyreHealth(_validVeh, _validBone?.index, true, 0)
-								SetVehicleTyreBurst(_validVeh, _validBone?.index, true, 1000)
-								exports["pulsar-core"]:SetVehicleTyreBurst(_validVeh, _validBone?.index, true, 1000)
-							end
-						end)
-					else
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
-					end
-					SetTimeout(1500, function()
-						_delay = false
-					end)
-				end)
-			end
-		elseif _validBone?.type == "body" then
-			if DoesEntityExist(_validVeh) then
-				_delay = true
-				PedFaceCoord(LocalPlayer.state.ped, _validBone?.coords)
-				exports['pulsar-hud']:ProgressWithTickEvent({
-					name = "chopping_action",
-					duration = _validBone?.duration,
-					label = "Scrapping Vehicle",
-					useWhileDead = true,
-					canCancel = true,
-					ignoreModifier = true,
-					tickrate = 100,
-					controlDisables = {
-						disableMovement = true,
-						disableCarMovement = true,
-						disableMouse = false,
-						disableCombat = true,
-					},
-					animation = {
-						animDict = "mini@repair",
-						anim = "fixing_a_ped",
-						flags = 17,
-					},
-				}, function()
-					if _validVeh == nil or _validBone == nil then
-						exports['pulsar-hud']:ProgressCancel()
-					end
-				end, function(status)
-					if not status then
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:ChopVehicle", {
-							vNet = VehToNet(_validVeh),
-						}, function(r)
-							-- if r then
-							-- 	exports["pulsar-core"]:DeleteVehicle(_validVeh)
-							-- end
-						end)
-					else
-						exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
-					end
-					SetTimeout(1500, function()
-						_delay = false
-					end)
-				end)
-			end
-		end
-	end
-end)
 
 RegisterNetEvent("Characters:Client:Spawn", function(data)
-	exports['pulsar-polyzone']:CreateBox(
+	plsr.Polyzone.Create:Box(
 		"chopping_public",
 		GlobalState["PublicDropoff"].coords,
 		GlobalState["PublicDropoff"].length,
@@ -210,7 +16,7 @@ RegisterNetEvent("Characters:Client:Spawn", function(data)
 		GlobalState["PublicDropoff"].options,
 		{}
 	)
-	exports['pulsar-polyzone']:CreateBox(
+	plsr.Polyzone.Create:Box(
 		"chopping_private",
 		GlobalState["PrivateDropoff"].coords,
 		GlobalState["PrivateDropoff"].length,
@@ -218,7 +24,7 @@ RegisterNetEvent("Characters:Client:Spawn", function(data)
 		GlobalState["PrivateDropoff"].options,
 		{}
 	)
-	exports['pulsar-polyzone']:CreateBox(
+	plsr.Polyzone.Create:Box(
 		"chopping_personal",
 		GlobalState["PersonalDropoff"].coords,
 		GlobalState["PersonalDropoff"].length,
@@ -227,35 +33,217 @@ RegisterNetEvent("Characters:Client:Spawn", function(data)
 		{}
 	)
 
-	exports['pulsar-laptop']:ChoppingCreateBlips()
+	plsr.Laptop.LSUnderground.Chopping:CreateBlips()
 end)
 
+LAPTOP.LSUnderground = LAPTOP.LSUnderground or {}
+LAPTOP.LSUnderground.Chopping = {
+	CreateBlips = function(self)
+		if plsr.Reputation:HasLevel("Salvaging", 7) or hasValue(plsr.State.character.States or {}, "ACCESS_LSUNDERGROUND") then
+			_blips.public = plsr.Blips:Add(
+				"chopping_public",
+				"LSUNDG Public Dropoff",
+				GlobalState["PublicDropoff"].coords,
+				524,
+				35,
+				0.4
+			)
+		else
+			plsr.Blips:Remove("chopping_public")
+		end
+
+		if plsr.Reputation:HasLevel("Salvaging", 7) and (plsr.Reputation:HasLevel("Chopping", 5) or hasValue(plsr.State.character.States or {}, "ACCESS_LSUNDERGROUND")) then
+			_blips.vip = plsr.Blips:Add(
+				"chopping_private",
+				"LSUNDG Private Dropoff",
+				GlobalState["PrivateDropoff"].coords,
+				524,
+				36,
+				0.4
+			)
+		else
+			plsr.Blips:Remove("chopping_private")
+		end
+
+		if hasValue(plsr.State.character.States or {}, "ACCESS_LSUNDERGROUND") then
+			_blips.private = plsr.Blips:Add(
+				"chopping_personal",
+				"LSUNDG Personal Dropoff",
+				GlobalState["PersonalDropoff"].coords,
+				524,
+				43,
+				0.4
+			)
+		else
+			plsr.Blips:Remove("chopping_personal")
+		end
+	end,
+	AttemptChop = function(self)
+		if _validBone ~= nil and _validVeh ~= nil then
+			if _validBone?.type == "door" then
+				if not IsVehicleDoorDamaged(_validVeh, _validBone?.index) then
+					_delay = true
+					PedFaceCoord(PlayerPedId(), _validBone?.coords)
+					plsr.NetSync:SetVehicleDoorOpen(_validVeh, _validBone?.index, false, true)
+					plsr.Progress:ProgressWithTickEvent({
+						name = "chopping_action",
+						duration = _validBone?.duration,
+						label = "Removing Part",
+						useWhileDead = true,
+						canCancel = true,
+						ignoreModifier = true,
+						tickrate = 100,
+						controlDisables = {
+							disableMovement = true,
+							disableCarMovement = true,
+							disableMouse = false,
+							disableCombat = true,
+						},
+						animation = {
+							task = "WORLD_HUMAN_WELDING",
+						},
+					}, function()
+						if _validVeh == nil or _validBone == nil then
+							plsr.Progress:Cancel()
+						end
+					end, function(status)
+						if not status then
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:ChopPart", {
+								vNet = VehToNet(_validVeh),
+								index = _validBone?.index,
+							}, function(c) end)
+						else
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
+							plsr.NetSync:SetVehicleDoorShut(_validVeh, _validBone?.index, true)
+						end
+
+						SetTimeout(1500, function()
+							_delay = false
+						end)
+					end)
+				end
+			elseif _validBone?.type == "tire" then
+				if not IsVehicleTyreBurst(_validVeh, _validBone?.index) then
+					_delay = true
+					PedFaceCoord(PlayerPedId(), _validBone?.coords)
+					plsr.Progress:ProgressWithTickEvent({
+						name = "chopping_action",
+						duration = _validBone?.duration,
+						label = "Removing Part",
+						useWhileDead = true,
+						canCancel = true,
+						ignoreModifier = true,
+						tickrate = 100,
+						controlDisables = {
+							disableMovement = true,
+							disableCarMovement = true,
+							disableMouse = false,
+							disableCombat = true,
+						},
+						animation = {
+							animDict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
+							anim = "machinic_loop_mechandplayer",
+							flags = 1,
+						},
+					}, function()
+						if _validVeh == nil or _validBone == nil then
+							plsr.Progress:Cancel()
+						end
+					end, function(status)
+						if not status then
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:ChopTire", {
+								vNet = VehToNet(_validVeh),
+								index = _validBone?.index,
+							}, function(r)
+								if r then
+									SetTyreHealth(_validVeh, _validBone?.index, true, 0)
+									SetVehicleTyreBurst(_validVeh, _validBone?.index, true, 1000)
+									plsr.NetSync:SetVehicleTyreBurst(_validVeh, _validBone?.index, true, 1000)
+								end
+							end)
+						else
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
+						end
+						SetTimeout(1500, function()
+							_delay = false
+						end)
+					end)
+				end
+			elseif _validBone?.type == "body" then
+				if DoesEntityExist(_validVeh) then
+					_delay = true
+					PedFaceCoord(PlayerPedId(), _validBone?.coords)
+					plsr.Progress:ProgressWithTickEvent({
+						name = "chopping_action",
+						duration = _validBone?.duration,
+						label = "Scrapping Vehicle",
+						useWhileDead = true,
+						canCancel = true,
+						ignoreModifier = true,
+						tickrate = 100,
+						controlDisables = {
+							disableMovement = true,
+							disableCarMovement = true,
+							disableMouse = false,
+							disableCombat = true,
+						},
+						animation = {
+							animDict = "mini@repair",
+							anim = "fixing_a_ped",
+							flags = 17,
+						},
+					}, function()
+						if _validVeh == nil or _validBone == nil then
+							plsr.Progress:Cancel()
+						end
+					end, function(status)
+						if not status then
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:ChopVehicle", {
+								vNet = VehToNet(_validVeh),
+							}, function(r)
+								-- if r then
+								-- 	NetSync:DeleteVehicle(_validVeh)
+								-- end
+							end)
+						else
+							plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
+						end
+						SetTimeout(1500, function()
+							_delay = false
+						end)
+					end)
+				end
+			end
+		end
+	end,
+}
+
 function DoChoppingThings(veh)
-	local bones = GetValidBones(veh, _vehBones)
+	local bones = GetValidBones(veh, config.vehBones)
 
 	CreateThread(function()
-		while LocalPlayer.state.chopping ~= nil and DoesEntityExist(NetToVeh(LocalPlayer.state.chopping)) do
+		while plsr.State.flags.chopping ~= nil and DoesEntityExist(NetToVeh(plsr.State.flags.chopping)) do
 			Wait(100)
 		end
-		LocalPlayer.state:set("chopping", nil, true)
+		plsr.State.flags.chopping = nil
 	end)
 
 	CreateThread(function()
-		while LocalPlayer.state.inChopZone ~= nil and LocalPlayer.state.chopping ~= nil do
-			bones = GetValidBones(veh, _vehBones)
+		while plsr.State.flags.inChopZone ~= nil and plsr.State.flags.chopping ~= nil do
+			bones = GetValidBones(veh, config.vehBones)
 			Wait(100)
 		end
 	end)
 
 	CreateThread(function()
-		local keyBind = exports["pulsar-kbs"]:GetKey("primary_action")
+		local keyBind = plsr.Keybinds:GetKey("primary_action")
 		local chopMessage = string.format("Press ~w~~r~[%s]~w~ to Chop Vehicle Part", keyBind)
 		local chopMessage = string.format("Press ~w~~r~[%s]~w~ to Scrap Vehicle", keyBind)
 
-		while LocalPlayer.state.loggedIn and not LocalPlayer.state.isDead and LocalPlayer.state.inChopZone ~= nil and LocalPlayer.state.chopping ~= nil do
+		while plsr.State.flags.loggedIn and not plsr.State.flags.isDead and plsr.State.flags.inChopZone ~= nil and plsr.State.flags.chopping ~= nil do
 			local bone, coords, distance = GetClosestBone(veh, bones)
 
-			if not IsPedInAnyVehicle(LocalPlayer.state.ped) and distance and distance <= 30.0 then
+			if not IsPedInAnyVehicle(PlayerPedId()) and distance and distance <= 30.0 then
 				local inDistance, text = false, nil
 
 				if bone.type ~= "body" and distance <= bone.distance then
@@ -265,7 +253,7 @@ function DoChoppingThings(veh)
 				end
 
 				if inDistance then
-					if not LocalPlayer.state.doingAction and not _delay then
+					if not plsr.State.flags.doingAction and not _delay then
 						Draw3DText(coords.x, coords.y, coords.z, text)
 					end
 					_validBone = {
@@ -319,7 +307,7 @@ function GetValidBones(entity, list)
 end
 
 function GetClosestBone(entity, list)
-	local playerCoords, bone, coords, distance = GetEntityCoords(LocalPlayer.state.ped)
+	local playerCoords, bone, coords, distance = GetEntityCoords(PlayerPedId())
 
 	for _, element in pairs(list) do
 		local boneCoords = GetWorldPositionOfEntityBone(entity, element.id or element)
@@ -347,21 +335,21 @@ function GetClosestBone(entity, list)
 end
 
 RegisterNetEvent("Ped:Client:Died", function()
-	if LocalPlayer.state.chopping ~= nil then
-		exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
-		LocalPlayer.state:set("chopping", nil, true)
+	if plsr.State.flags.chopping ~= nil then
+		plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
+		plsr.State.flags.chopping = nil
 		_validBone = nil
 		_validVeh = nil
 	end
 end)
 
 RegisterNetEvent('Laptop:Client:LSUnderground:Chopping:CancelCurrent', function()
-	if LocalPlayer.state.inChopZone ~= nil and LocalPlayer.state.chopping ~= nil then
+	if plsr.State.flags.inChopZone ~= nil and plsr.State.flags.chopping ~= nil then
 		if _delay then
-			exports["pulsar-hud"]:Notification("error", "Choplist Has Refreshed")
-			exports['pulsar-hud']:ProgressCancel()
+			plsr.Notification:Error("Choplist Has Refreshed")
+			plsr.Progress:Cancel()
 		end
-		LocalPlayer.state:set("chopping", nil, true)
+		plsr.State.flags.chopping = nil
 		_validBone = nil
 		_validVeh = nil
 	end
@@ -369,7 +357,7 @@ end)
 
 AddEventHandler("Characters:Client:Updated", function(key)
 	if key == "Reputations" or key == "States" then
-		exports['pulsar-laptop']:ChoppingCreateBlips()
+		plsr.Laptop.LSUnderground.Chopping:CreateBlips()
 	end
 end)
 
@@ -383,79 +371,78 @@ end
 
 AddEventHandler("Polyzone:Enter", function(id, testedPoint, insideZones, data)
 	if
-		(id == "chopping_public" and exports['pulsar-characters']:RepHasLevel("Salvaging", 7))
-		or (id == "chopping_private" and LocalPlayer.state.Character ~= nil and (
-			exports['pulsar-characters']:RepHasLevel("Chopping", 5) or
-			hasValue(LocalPlayer.state.Character:GetData("States"), "ACCESS_LSUNDERGROUND")
+		(id == "chopping_public" and plsr.Reputation:HasLevel("Salvaging", 7))
+		or (id == "chopping_private" and plsr.State.flags.loggedIn and (
+			plsr.Reputation:HasLevel("Chopping", 5) or
+			hasValue(plsr.State.character.States, "ACCESS_LSUNDERGROUND")
 		))
 		or (id == "chopping_personal"
-			and hasValue(LocalPlayer.state.Character:GetData("States"), "ACCESS_LSUNDERGROUND")
+			and hasValue(plsr.State.character.States, "ACCESS_LSUNDERGROUND")
 			and (
-				LocalPlayer.state.Character:GetData("ChopLists") ~= nil
-				and TableLength(LocalPlayer.state.Character:GetData("ChopLists")) > 0
+				plsr.State.character.ChopLists ~= nil
+				and TableLength(plsr.State.character.ChopLists) > 0
 			)
 		)
 	then
-		LocalPlayer.state:set("inChopZone", id, true)
+		plsr.State.flags.inChopZone = id
 	end
 end)
 
 AddEventHandler("Polyzone:Exit", function(id, testedPoint, insideZones, data)
 	if id == "chopping_public" or id == "chopping_private" or id == "chopping_personal" then
-		if LocalPlayer.state.chopping ~= nil then
-			exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
+		if plsr.State.flags.chopping ~= nil then
+			plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CancelChop")
 		end
-		if LocalPlayer.state.inChopZone ~= nil then
-			LocalPlayer.state:set("inChopZone", nil, true)
+		if plsr.State.flags.inChopZone ~= nil then
+			plsr.State.flags.inChopZone = nil
 		end
-		if LocalPlayer.state.chopping ~= nil then
-			LocalPlayer.state:set("chopping", nil, true)
+		if plsr.State.flags.chopping ~= nil then
+			plsr.State.flags.chopping = nil
 		end
 	end
 end)
 
 AddEventHandler("Keybinds:Client:KeyUp:primary_action", function()
 	if
-		LocalPlayer.state.inChopZone ~= nil
-		and not LocalPlayer.state.isDead
-		and LocalPlayer.state.chopping
+		plsr.State.flags.inChopZone ~= nil
+		and not plsr.State.flags.isDead
+		and plsr.State.flags.chopping
 		and _validBone ~= nil
-		and not LocalPlayer.state.doingAction
+		and not plsr.State.flags.doingAction
 		and not _delay
 	then
 		_doingActions = true
-		exports['pulsar-laptop']:AttemptChop()
+		plsr.Laptop.LSUnderground.Chopping:AttemptChop()
 		_doingActions = false
 	end
 end)
 
 AddEventHandler("Laptop:Client:LSUnderground:Chopping:Pickup", function()
-	exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:Pickup")
+	plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:Pickup")
 end)
 
 AddEventHandler("Laptop:Client:LSUnderground:Chopping:GetPublicList", function()
-	exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:GetPublicList")
+	plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:GetPublicList")
 end)
 
 AddEventHandler("Laptop:Client:LSUnderground:Chopping:StartChop", function(entity, data)
 	if
-		not LocalPlayer.state.isDead
-		and LocalPlayer.state.inChopZone ~= nil
-		and not LocalPlayer.state.chopping
+		not plsr.State.flags.isDead
+		and plsr.State.flags.inChopZone ~= nil
+		and not plsr.State.flags.chopping
 	then
 		local vNet = VehToNet(entity.entity)
-		exports["pulsar-core"]:ServerCallback("Laptop:LSUnderground:Chopping:CheckVehicle", { vNet = vNet },
-			function(res)
-				if res then
-					while not NetworkHasControlOfEntity(entity.entity) do
-						NetworkRequestControlOfEntity(entity.entity)
-						Wait(1)
-					end
-					LocalPlayer.state:set("chopping", vNet, true)
-					DoChoppingThings(entity.entity)
-				else
-					LocalPlayer.state:set("chopping", nil, true)
+		plsr.Callbacks:ServerCallback("Laptop:LSUnderground:Chopping:CheckVehicle", { vNet = vNet }, function(res)
+			if res then
+				while not NetworkHasControlOfEntity(entity.entity) do
+					NetworkRequestControlOfEntity(entity.entity)
+					Wait(1)
 				end
-			end)
+				plsr.State.flags.chopping = vNet
+				DoChoppingThings(entity.entity)
+			else
+				plsr.State.flags.chopping = nil
+			end
+		end)
 	end
 end)

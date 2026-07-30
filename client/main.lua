@@ -13,53 +13,56 @@ local _ignoreEvents = {
 	"Ped",
 }
 
-AddEventHandler('onClientResourceStart', function(resource)
-	if resource == GetCurrentResourceName() then
-		Wait(1000)
-		exports["pulsar-kbs"]:Add("laptop_open", "", "keyboard", "Laptop - Open", function()
-			OpenLaptop()
-		end)
+CreateThread(function()
+	plsr.State.flags.laptopOpen = false
 
-		RegisterBoostingCallbacks()
-	end
+	plsr.Keybinds:Add("laptop_open", "", "keyboard", "Laptop - Open", function()
+		OpenLaptop()
+	end)
+
+	RegisterBoostingCallbacks()
 end)
 
 function OpenLaptop()
 	if
 		_loggedIn
-		and not exports['pulsar-hud']:IsDisabled()
-		and not exports['pulsar-jail']:IsJailed()
-		and not (exports.ox_inventory:Search('count', 'laptop') == 0)
-		and not LocalPlayer.state.laptopOpen
+		and not plsr.Hud:IsDisabled()
+		and not plsr.Jail:IsJailed()
+		and hasValue(plsr.State.character.States, "LAPTOP")
+		and not plsr.State.flags.laptopOpen
 	then
-		exports['pulsar-laptop']:Open()
+		plsr.Laptop:Open()
 	end
 end
 
 RegisterNetEvent("Laptop:Client:Open", OpenLaptop)
 
 AddEventHandler("Inventory:Client:ItemsLoaded", function()
-	exports['pulsar-laptop']:SetData("items", exports.ox_inventory:ItemsGetData())
+	plsr.Laptop.Data:Set("items", plsr.Inventory.Items:GetData())
 end)
 
-AddEventHandler("Characters:Client:Updated", function()
-	_settings = LocalPlayer.state.Character:GetData("LaptopSettings")
-	exports['pulsar-laptop']:SetData("player", LocalPlayer.state.Character:GetData())
+AddEventHandler("Characters:Client:Updated", function(key)
+	if hasValue(_ignoreEvents, key) then
+		return
+	end
+	_settings = plsr.State.character.LaptopSettings
+	plsr.Laptop.Data:Set("player", plsr.State:Get('character'))
 
 	if
-		LocalPlayer.state.laptopOpen
-		and (exports.ox_inventory:Search('count', 'laptop') == 0)
+		key == "States"
+		and plsr.State.flags.laptopOpen
+		and (not hasValue(plsr.State.character.States, "LAPTOP"))
 	then
-		exports['pulsar-laptop']:Close(true)
+		plsr.Laptop:Close(true)
 	end
 end)
 
 AddEventHandler("Ped:Client:Died", function()
-	exports['pulsar-laptop']:Close(true)
+	plsr.Laptop:Close(true)
 end)
 
 RegisterNetEvent("Job:Client:DutyChanged", function(state)
-	exports['pulsar-laptop']:SetData("onDuty", state)
+	plsr.Laptop.Data:Set("onDuty", state)
 end)
 
 RegisterNetEvent("UI:Client:Reset", function(manual)
@@ -71,21 +74,21 @@ RegisterNetEvent("UI:Client:Reset", function(manual)
 
 	if manual then
 		TriggerServerEvent("Laptop:Server:UIReset")
-		if LocalPlayer.state.tabletOpen then
-			exports['pulsar-laptop']:Close()
+		if plsr.State.flags.laptopOpen then
+			plsr.Laptop:Close()
 		end
 	end
 end)
 
 AddEventHandler("UI:Client:Close", function(context)
 	if context ~= "laptop" then
-		exports['pulsar-laptop']:Close()
+		plsr.Laptop:Close()
 	end
 end)
 
 AddEventHandler("Ped:Client:Died", function()
-	if LocalPlayer.state.laptopOpen then
-		exports['pulsar-laptop']:Close()
+	if plsr.State.flags.laptopOpen then
+		plsr.Laptop:Close()
 	end
 end)
 

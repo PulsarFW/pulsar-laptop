@@ -3,19 +3,19 @@ _vipChopList = {}
 
 CreateThread(function()
 	_publicChoplist = {
-		list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 2),
+		list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 2),
 		public = true,
 	}
 	_vipChopList = {
-		list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 4),
+		list = plsr.Laptop.LSUnderground.Chopping:GenerateList(10, 4),
 		public = true,
 	}
 
 	-- while true do
 	-- 	if not _publicChoplist.expires or os.time() > _publicChoplist.expires then
-	-- 		exports['pulsar-core']:LoggerTrace("Chopping", "Generating New Public Chop List")
+	-- 		Logger:Trace("Chopping", "Generating New Public Chop List")
 	-- 		_publicChoplist = {
-	-- 			list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 2),
+	-- 			list = Laptop.LSUnderground.Chopping:GenerateList(10, 2),
 	-- 			expires = os.time() + (60 * 10),
 	-- 		}
 
@@ -34,9 +34,9 @@ CreateThread(function()
 	-- 	end
 
 	-- 	if not _vipChopList.expires or os.time() > _vipChopList.expires then
-	-- 		exports['pulsar-core']:LoggerTrace("Chopping", "Generating New VIP Chop List")
+	-- 		Logger:Trace("Chopping", "Generating New VIP Chop List")
 	-- 		_vipChopList = {
-	-- 			list = exports['pulsar-laptop']:LSUndergroundChoppingGenerateList(10, 4),
+	-- 			list = Laptop.LSUnderground.Chopping:GenerateList(10, 4),
 	-- 			expires = os.time() + (60 * 10),
 	-- 		}
 
@@ -57,3 +57,5 @@ CreateThread(function()
 	-- 	Wait(60000)
 	-- end
 end)
+
+
